@@ -1,0 +1,25 @@
+antigfw (0.3) unstable; urgency=low
+
+  * Use python as system manager. 
+
+ -- Shell Xu <shell909090@gmail.com>  Sat, 16 Apr 2011 13:28:23 +0800
+
+antigfw (0.2-1) unstable; urgency=low
+
+  * new package system and setup
+
+ -- Shell Xu <shell909090@gmail.com>  Sat, 05 Mar 2011 17:30:07 +0800
+
+antigfw (0.1.1-1) unstable; urgency=low
+
+  * Fix gfw.py error code.
+  * Fix init.d/sshtunnel source error.
+
+ -- shell <shell909090@gmail.com>  Fri, 07 May 2010 21:56:40 +0800
+
+antigfw (0.1.0-1) unstable; urgency=low
+
+  * Initial release.
+
+ -- shell <shell909090@gmail.com>  Thu, 06 May 2010 13:56:55 +0800
+

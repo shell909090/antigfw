@@ -1,0 +1,9 @@
+syntax: glob
+
+pylint.*
+*.elc
+*.pyc
+*.pyo
+*.so
+*.o
+*~
