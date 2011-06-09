@@ -39,8 +39,8 @@ def ssh_runner(pre_pid, cfg):
 
 def daemon_start():
     runfile.chk_state(False)
-    if pyinit.daemonized() > 0:
-        print 'antigfw started.' % sys.argv[0]
+    if pyinit.daemonized(True) > 0:
+        print 'antigfw started.'
         return
     cfgs = load_config(['antigfw', '/etc/default/antigfw'])
     if cfgs is None:
@@ -57,7 +57,7 @@ def daemon_stop():
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print '%s {start|stop|restart|force-reload}' % sys.argv[0]
-        return
+        sys.exit(0)
     cmd = sys.argv[1].lower()
     if cmd == 'start': daemon_start()
     elif cmd == 'stop': daemon_stop()

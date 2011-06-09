@@ -1,3 +1,9 @@
+antigfw (0.4-2) unstable; urgency=low
+
+  * Fix some bug.
+
+ -- Shell Xu <shell909090@gmail.com>  Thu, 09 Jun 2011 15:08:06 +0800
+
 antigfw (0.4-1) unstable; urgency=low
 
   * Use pyinit as toolkit.

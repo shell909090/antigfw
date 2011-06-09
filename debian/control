@@ -8,6 +8,6 @@ Homepage: http://shell909090.com/
 
 Package: antigfw
 Architecture: all
-Depends: ${shlibs:Depends}, ${misc:Depends}, openssh-client (>= 5.0), python-support (>= 0.90), python-pyinit (>= 1.0), python (>= 2.6)
+Depends: ${shlibs:Depends}, ${misc:Depends}, openssh-client (>= 5.0), python-support (>= 0.90), python-pyinit (>= 1.2), python (>= 2.6)
 Description: toolset for cross GFW.
  toolset for cross GFW. auto start multi ssh tunnel.
