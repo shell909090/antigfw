@@ -1,3 +1,9 @@
+antigfw (0.4-3) unstable; urgency=low
+
+  * Upstream bug fix.
+
+ -- Shell Xu <shell909090@gmail.com>  Thu, 09 Jun 2011 16:15:15 +0800
+
 antigfw (0.4-2) unstable; urgency=low
 
   * Fix some bug.

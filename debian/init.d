@@ -38,13 +38,13 @@ def ssh_runner(pre_pid, cfg):
     return os.spawnv(os.P_NOWAIT, '/usr/bin/ssh', args)
 
 def daemon_start():
-    runfile.chk_state(False)
-    if pyinit.daemonized(True) > 0:
-        print 'antigfw started.'
-        return
     cfgs = load_config(['antigfw', '/etc/default/antigfw'])
     if cfgs is None:
         print 'antigfw config file not found'
+        return
+    runfile.chk_state(False)
+    if pyinit.daemonized(True) > 0:
+        print 'antigfw started.'
         return
     runfile.acquire()
     pyinit.watcher(ssh_runner, cfgs = cfgs)
@@ -58,9 +58,12 @@ if __name__ == '__main__':
     if len(sys.argv) < 2:
         print '%s {start|stop|restart|force-reload}' % sys.argv[0]
         sys.exit(0)
-    cmd = sys.argv[1].lower()
-    if cmd == 'start': daemon_start()
-    elif cmd == 'stop': daemon_stop()
-    elif cmd == 'restart' or cmd == 'force-reload':
-        daemon_stop()
-        daemon_start()
+    try:
+        cmd = sys.argv[1].lower()
+        if cmd == 'start': daemon_start()
+        elif cmd == 'stop': daemon_stop()
+        elif cmd == 'restart' or cmd == 'force-reload':
+            daemon_stop()
+            daemon_start()
+    except Exception, e:
+        print e
