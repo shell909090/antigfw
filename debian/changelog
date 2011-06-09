@@ -1,6 +1,12 @@
+antigfw (0.4-1) unstable; urgency=low
+
+  * Use pyinit as toolkit.
+
+ -- Shell Xu <shell909090@gmail.com>  Thu, 09 Jun 2011 13:59:27 +0800
+
 antigfw (0.3) unstable; urgency=low
 
-  * Use python as system manager. 
+  * Use python as system manager.
 
  -- Shell Xu <shell909090@gmail.com>  Sat, 16 Apr 2011 13:28:23 +0800
 
