@@ -14,43 +14,49 @@
 @date: 2011-04-07
 @author: shell.xu
 '''
-import os
-import sys
-import imp
-import signal
-import pyinit
+import os, sys, imp
+import signal, pyinit, logging
 from os import path
 
-runfile = pyinit.runfile('/var/run/antigfw.pid')
-
-def load_config(pth_list):
+def load_config(*pth_list):
     for pth in pth_list:
         if not path.exists(pth): continue
         mod = imp.load_source('config', pth)
-        return mod.config
+        return mod
+    raise Exception('antigfw config file not found')
+
+runfile = pyinit.runfile('/var/run/antigfw.pid')
+config = load_config('antigfw', '~/.antigfw', '/etc/default/antigfw')
+logger = logging.getLogger('antigfw')
+if hasattr(config, 'logfile') and config.logfile:
+    handler = logging.FileHandler(config.logfile)
+else: handler = logging.StreamHandler()
+handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
+logger.addHandler(handler)
+logger.setLevel(logging.INFO)
 
 def ssh_runner(pre_pid, cfg):
     args = ['ssh', '-CNq', '-o', 'ServerAliveInterval=30', 
-            '%s@%s' % (cfg['username'], cfg['sshhost']),
-            '-p', cfg.get('sshport', 22), '-D', cfg.get('proxyport', 7778)]
+            '%s@%s' % (cfg['username'], cfg['sshhost']),]
+    if 'sshport' in cfg:
+        args.extend(('-p', cfg['sshport'],))
+    if 'proxyport' in cfg:
+        args.extend(('-D', cfg['proxyport'],))
     if 'sshprivfile' in cfg:
         args.extend(('-i', cfg['sshprivfile'],))
     return os.spawnv(os.P_NOWAIT, '/usr/bin/ssh', args)
 
 def daemon_start():
-    cfgs = load_config(['antigfw', '/etc/default/antigfw'])
-    if cfgs is None:
-        print 'antigfw config file not found'
-        return
+    cfgs = config.servers
     runfile.chk_state(False)
-    if pyinit.daemonized(True) > 0:
+    if pyinit.daemonized() > 0:
         print 'antigfw started.'
         return
     runfile.acquire()
     pyinit.watcher(ssh_runner, cfgs = cfgs)
 
 def daemon_stop():
-    for pid in runfile.getpids(): os.kill(pid, signal.SIGTERM)
+    runfile.kill(signal.SIGTERM)
     runfile.release()
     print 'antigfw stoped.'
 
@@ -62,7 +68,7 @@ if __name__ == '__main__':
         cmd = sys.argv[1].lower()
         if cmd == 'start': daemon_start()
         elif cmd == 'stop': daemon_stop()
-        elif cmd == 'restart' or cmd == 'force-reload':
+        elif cmd in ('restart', 'force-reload'):
             daemon_stop()
             daemon_start()
     except Exception, e:

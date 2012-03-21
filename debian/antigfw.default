@@ -1,4 +1,5 @@
-config = [
+logfile = ''
+servers = [
     {'proxyport':'7778', 'username':'user', 'sshhost':'sshhost',
      'sshport':'22', 'sshprivfile':'~/.ssh/id_rsa'},
     ]

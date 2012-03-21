@@ -1,16 +1,22 @@
-antigfw (0.4-3) unstable; urgency=low
+antigfw (0.5) unstable; urgency=low
+
+  * restruct and repacking
+
+ -- Shell Xu <shell909090@gmail.com>  Wed, 21 Mar 2012 17:45:43 +0800
+
+antigfw (0.4.3) unstable; urgency=low
 
   * Upstream bug fix.
 
  -- Shell Xu <shell909090@gmail.com>  Thu, 09 Jun 2011 16:15:15 +0800
 
-antigfw (0.4-2) unstable; urgency=low
+antigfw (0.4.2) unstable; urgency=low
 
   * Fix some bug.
 
  -- Shell Xu <shell909090@gmail.com>  Thu, 09 Jun 2011 15:08:06 +0800
 
-antigfw (0.4-1) unstable; urgency=low
+antigfw (0.4.1) unstable; urgency=low
 
   * Use pyinit as toolkit.
 
@@ -22,20 +28,20 @@ antigfw (0.3) unstable; urgency=low
 
  -- Shell Xu <shell909090@gmail.com>  Sat, 16 Apr 2011 13:28:23 +0800
 
-antigfw (0.2-1) unstable; urgency=low
+antigfw (0.2) unstable; urgency=low
 
   * new package system and setup
 
  -- Shell Xu <shell909090@gmail.com>  Sat, 05 Mar 2011 17:30:07 +0800
 
-antigfw (0.1.1-1) unstable; urgency=low
+antigfw (0.1.1) unstable; urgency=low
 
   * Fix gfw.py error code.
   * Fix init.d/sshtunnel source error.
 
  -- shell <shell909090@gmail.com>  Fri, 07 May 2010 21:56:40 +0800
 
-antigfw (0.1.0-1) unstable; urgency=low
+antigfw (0.1.0) unstable; urgency=low
 
   * Initial release.
 
