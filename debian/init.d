@@ -56,20 +56,19 @@ def daemon_start():
     pyinit.watcher(ssh_runner, cfgs = cfgs)
 
 def daemon_stop():
-    runfile.kill(signal.SIGTERM)
-    runfile.release()
+    try:
+        runfile.kill_stand()
+        runfile.release()
+    except pyinit.RunfileNotExistError: pass
     print 'antigfw stoped.'
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print '%s {start|stop|restart|force-reload}' % sys.argv[0]
         sys.exit(0)
-    try:
-        cmd = sys.argv[1].lower()
-        if cmd == 'start': daemon_start()
-        elif cmd == 'stop': daemon_stop()
-        elif cmd in ('restart', 'force-reload'):
-            daemon_stop()
-            daemon_start()
-    except Exception, e:
-        print e
+    cmd = sys.argv[1].lower()
+    if cmd == 'start': daemon_start()
+    elif cmd == 'stop': daemon_stop()
+    elif cmd in ('restart', 'force-reload'):
+        daemon_stop()
+        daemon_start()
