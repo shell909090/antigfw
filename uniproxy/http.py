@@ -4,14 +4,10 @@
 @date: 2012-04-26
 @author: shell.xu
 '''
-import os, logging
-from urlparse import urlparse
-from gevent import socket, select
+import logging
 
-__all__ = ['recv', 'connect', 'http_proxy']
 logger = logging.getLogger('http')
 
-VERBOSE = False
 BUFSIZE = 512
 CODE_NOBODY = [100, 101, 204, 304]
 DEFAULT_PAGES = {
@@ -80,10 +76,7 @@ class HttpMessage(object):
     def get_headers(self, k):
         return [vs for ks, vs in self.headers if ks == k]
 
-    def has_header(self, k):
-        for ks, vs in self.headers:
-            if ks == k: return True
-        return False
+    def has_header(self, k): return self.get_header(k) is not None
 
     def recv_header(self, stream):
         while True:
@@ -118,31 +111,41 @@ class HttpMessage(object):
                 on_body(d)
                 d = stream.read(BUFSIZE)
 
+    def dbg_print(self):
+        logger.debug(self.d + self.get_startline())
+        for k, v in self.headers: logger.debug('%s%s: %s' % (self.d, k, v))
+
 class HttpRequest(HttpMessage):
+    d = '> '
 
     def __init__(self, method, uri, version):
         HttpMessage.__init__(self)
         self.method, self.uri, self.version = method, uri, version
 
+    def get_startline(self):
+        return ' '.join((self.method, self.uri, self.version))
+
 class HttpResponse(HttpMessage):
+    d = '< '
 
     def __init__(self, version, code, phrase):
         HttpMessage.__init__(self)
         self.version, self.code, self.phrase = version, int(code), phrase
-        self.closeconn = True
 
-    def send(self, stream):
-        start_line = [self.version, str(self.code), self.phrase]
-        self.send_header(stream, start_line, self.headers)
+    def get_startline(self):
+        return ' '.join((self.version, str(self.code), self.phrase))
 
-def send_header(stream, start_line, headers):
-    stream.write(" ".join(start_line) + '\r\n')
+    def sendto(self, stream):
+        stream.write(self.get_startline() + '\r\n')
+        send_headers(stream, self.headers)
+
+def send_headers(stream, headers):
     for k, l in headers:
         k = '-'.join([t.capitalize() for t in k.split('-')])
         stream.write("%s: %s\r\n" % (k, l))
     stream.write('\r\n')
 
-def recv(stream, cls=HttpRequest):
+def recv_headers(stream, cls=HttpRequest):
     line = stream.readline().strip()
     if len(line) == 0: raise EOFError()
     r = line.split(' ', 2)
@@ -150,53 +153,3 @@ def recv(stream, cls=HttpRequest):
     msg = cls(*r)
     msg.recv_header(stream)
     return msg
-
-def print_header(d, start_line, headers):
-    logger.debug(d + ' '.join(start_line))
-    for k, v in headers: logger.debug(d + '%s: %s' % (k, v))
-
-def parse_target(uri):
-    u = urlparse(uri)
-    if not u.netloc: hostname = u.path
-    else: hostname = u.netloc
-    r = hostname.split(':', 1)
-    hostname = r[0]
-    if len(r) > 1: port = int(r[1])
-    else: port = 443 if u.scheme.lower() == 'https' else 80
-    return hostname, port, u.path + '?' + u.query
-
-def connect(req, stream, sock_factory):
-    hostname, port, uri = parse_target(req.uri)
-    with sock_factory(hostname, port) as sock:
-        res = HttpResponse(req.version, 200, DEFAULT_PAGES[200][0])
-        send_header(stream, (res.version, str(res.code), res.phrase), res.headers)
-        stream.flush()
-
-        rlist = [stream.fileno(), sock.fileno()]
-        while True:
-            for rfd in select.select(rlist, [], [])[0]:
-                d = os.read(rfd, BUFSIZE)
-                if rfd == stream.fileno():
-                    os.write(sock.fileno(), d)
-                else: os.write(stream.fileno(), d)
-
-def http_proxy(req, stream, sock_factory):
-    hostname, port, uri = parse_target(req.uri)
-    headers = [(h, v) for h, v in req.headers if not h.lower().startswith('proxy')]
-    with sock_factory(hostname, port) as sock:
-        stream1 = sock.makefile()
-
-        if VERBOSE:
-            print_header('> ', (req.method, uri, req.version), headers)
-        send_header(stream1, (req.method, uri, req.version), headers)
-        req.recv_body(stream, stream1.write, raw=True)
-        stream1.flush()
-
-        res = recv(stream1, HttpResponse)
-        if VERBOSE:
-            print_header('< ', (res.version, str(res.code), res.phrase), res.headers)
-        send_header(stream, (res.version, str(res.code), res.phrase), res.headers)
-        hasbody = req.method.upper() != 'HEAD' and res.code not in CODE_NOBODY
-        res.recv_body(stream1, stream.write, hasbody, raw=True)
-        stream.flush()
-    return req.get_header('proxy-connection', '').lower() == 'keep-alive'

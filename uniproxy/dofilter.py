@@ -11,8 +11,8 @@ logger = logging.getLogger('filter')
 
 class DomainFilter(object):
 
-    def __init__(self, filepath=None):
-        self.filepath, self.domains = filepath, {}
+    def __init__(self):
+        self.domains = {}
 
     def add(self, domain):
         doptr, chunk, domain = self.domains, domain.split('.'), domain.lower()
@@ -62,20 +62,18 @@ class DomainFilter(object):
     def load(self, stream):
             for line in stream: self.add(line.strip().lower())
 
-    def loadfile(self, filepath=None):
-        if filepath is None: filepath = self.filepath
+    def loadfile(self, filepath):
         with open(filepath, 'r') as fi: self.load(fi)
 
     def save(self, stream):
         for line in sorted(self.getlist()): stream.write(line+'\n')
 
-    def savefile(self, filepath=None):
-        if filepath is None: filepath = self.filepath
+    def savefile(self, filepath):
         with open(filepath, 'w+') as fo: self.save(fo)
 
 def main():
-    filter = DomainFilter(sys.argv[1])
-    filter.loadfile()
+    filter = DomainFilter()
+    filter.loadfile(sys.argv[1])
     for i in sys.argv[2:]: print '%s: %s' % (i, i in filter)
 
 if __name__ == '__main__': main()

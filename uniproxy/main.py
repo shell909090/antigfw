@@ -5,7 +5,7 @@
 @author: shell.xu
 '''
 import sys, logging, gevent
-import utils, socks, http, dofilter
+import utils, socks, http, proxy, dofilter
 from urlparse import urlparse
 from contextlib import contextmanager
 from gevent import socket, dns, server
@@ -34,13 +34,10 @@ def proxy_server(cfgs):
 
     def do_req(req, stream):
         u = urlparse(req.uri)
-        if not u.netloc: hostname = u.path
-        else: hostname = u.netloc
-        usesocks = hostname.split(':', 1)[0] in filter
+        usesocks = (u.netloc or u.path).split(':', 1)[0] in filter
         logger.info('%s %s %s' % (req.method, req.uri,
                                   'socks' if usesocks else 'direct'))
-        method = req.method.upper()
-        func = http.connect if method == 'CONNECT' else http.http_proxy
+        func = proxy.connect if req.method.upper() == 'CONNECT' else proxy.http
         sock_factory = get_socks_factory() if usesocks else with_sock
         r = func(req, stream, sock_factory)
         connst = 'keep-alive' if r else 'close'
@@ -50,10 +47,7 @@ def proxy_server(cfgs):
     def sock_handler(sock, addr):
         stream = sock.makefile()
         try:
-            n = True
-            while n:
-                req = http.recv(stream)
-                n = do_req(req, stream)
+            while do_req(proxy.recv_headers(stream), stream): pass
         except EOFError: pass
         except Exception, err: logger.exception('unknown')
         sock.close()
