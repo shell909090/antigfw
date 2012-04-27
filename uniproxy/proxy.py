@@ -24,18 +24,17 @@ def parse_target(uri):
 def connect(req, stream, sock_factory):
     hostname, port, uri = parse_target(req.uri)
     with sock_factory(hostname, port) as sock:
-        res = HttpResponse(req.version, 200, DEFAULT_PAGES[200][0])
+        res = HttpResponse(req.version, 200, 'OK')
         res.sendto(stream)
         stream.flush()
 
-        rlist = [stream.fileno(), sock.fileno()]
+        fd1, fd2 = stream.fileno(), sock.fileno()
+        rlist = [fd1, fd2]
         while True:
             for rfd in select.select(rlist, [], [])[0]:
                 d = os.read(rfd, BUFSIZE)
                 if not d: raise EOFError()
-                if rfd == stream.fileno():
-                    os.write(sock.fileno(), d)
-                else: os.write(stream.fileno(), d)
+                os.write(fd2 if rfd == fd1 else fd1, d)
 
 def http(req, stream, sock_factory):
     hostname, port, uri = parse_target(req.uri)
