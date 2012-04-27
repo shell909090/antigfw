@@ -27,7 +27,8 @@ def proxy_server(cfgs):
         return s.with_socks
 
     cfg = utils.import_config(*cfgs)
-    sockcfg.append(socks.SocksManager('127.0.0.1', 7777))
+    for host, port, max_conn in cfg.get('socks', [('127.0.0.1', 7777, 10),]):
+        sockcfg.append(socks.SocksManager(host, port, max_conn=max_conn))
     filter = dofilter.DomainFilter()
     for filepath in cfg.get('filter', ['gfw',]): filter.loadfile(filepath)
 
