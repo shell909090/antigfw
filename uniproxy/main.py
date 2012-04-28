@@ -27,7 +27,7 @@ def proxy_server(cfgs):
         return s.with_socks
 
     cfg = utils.import_config(*cfgs)
-    for host, port, max_conn in cfg.get('socks', [('127.0.0.1', 7777, 10),]):
+    for host, port, max_conn in cfg.get('socks', [('127.0.0.1', 7777, 30),]):
         sockcfg.append(socks.SocksManager(host, port, max_conn=max_conn))
     filter = dofilter.DomainFilter()
     for filepath in cfg.get('filter', ['gfw',]): filter.loadfile(filepath)
@@ -35,13 +35,11 @@ def proxy_server(cfgs):
     def do_req(req, stream):
         u = urlparse(req.uri)
         usesocks = (u.netloc or u.path).split(':', 1)[0] in filter
-        logger.info('%s %s %s' % (req.method, req.uri,
-                                  'socks' if usesocks else 'direct'))
+        logger.info('%s %s %s' % (
+                req.method, req.uri, 'socks' if usesocks else 'direct'))
         func = proxy.connect if req.method.upper() == 'CONNECT' else proxy.http
         sock_factory = get_socks_factory() if usesocks else with_sock
         r = func(req, stream, sock_factory)
-        connst = 'keep-alive' if r else 'close'
-        logger.info('done %s, connection %s' % (req.uri, connst))
         return r
 
     def sock_handler(sock, addr):

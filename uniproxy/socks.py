@@ -8,6 +8,8 @@ import struct, logging
 from contextlib import contextmanager
 from gevent import socket, coros
 
+logger = logging.getLogger('socks')
+
 PROXY_TYPE_SOCKS4 = 1
 PROXY_TYPE_SOCKS5 = 2
 
@@ -57,6 +59,7 @@ def socks5_connect(target, proxy, username=None, password=None, rdns=True):
         authstat = stream.read(2)
         if authstat[0] != "\x01": raise GeneralProxyError(1)
         if authstat[1] != "\x00": raise Socks5AuthError(3)
+        logger.debug('authenticated with password')
     elif chosenauth[1] == "\xFF": raise Socks5AuthError(2)
     else: raise GeneralProxyError(1)
 
@@ -76,9 +79,11 @@ def socks5_connect(target, proxy, username=None, password=None, rdns=True):
         if ord(resp[1]) <= 8: raise Socks5Error(ord(resp[1]))
         else: raise Socks5Error(9)
     if resp[3] == "\x03": boundaddr = stream.read(stream.read(1))
-    elif resp[3] == "\x01": boundaddr = stream.read(4)
+    elif resp[3] == "\x01": boundaddr = socket.inet_ntoa(stream.read(4))
     else: raise GeneralProxyError(1)
     boundport = struct.unpack(">H", stream.read(2))[0]
+    logger.debug('connected with %s:%s, bind in %s:%d' % (
+            target[0], target[1], boundaddr, boundport))
     return sock, (boundaddr, boundport)
 
 class SocksManager(object):
@@ -91,9 +96,13 @@ class SocksManager(object):
     @contextmanager
     def with_socks(self, addr, port):
         self.smph.acquire()
+        logger.info('%s:%d(%s) allocated.' % (
+                self.s[0][0], self.s[0][1], self.smph.counter))
         try:
             sock, bind = socks5_connect((addr, port), *self.s)
             yield sock
         finally:
             sock.close()
+            logger.info('%s:%d(%s), released.' % (
+                    self.s[0][0], self.s[0][1], self.smph.counter))
             self.smph.release()

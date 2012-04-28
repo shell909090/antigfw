@@ -149,6 +149,7 @@ def recv_headers(stream, cls=HttpRequest):
     line = stream.readline().strip()
     if len(line) == 0: raise EOFError()
     r = line.split(' ', 2)
+    if len(r) < 2: raise Exception('unknown format')
     if len(r) < 3: r.append(DEFAULT_PAGES[int(r[1])][0])
     msg = cls(*r)
     msg.recv_header(stream)
