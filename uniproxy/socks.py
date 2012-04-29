@@ -98,11 +98,12 @@ class SocksManager(object):
         self.smph.acquire()
         logger.info('%s:%d(%s) allocated.' % (
                 self.s[0][0], self.s[0][1], self.smph.counter))
+        sock = None
         try:
             sock, bind = socks5_connect((addr, port), *self.s)
             yield sock
         finally:
-            sock.close()
+            if socks: sock.close()
             logger.info('%s:%d(%s), released.' % (
                     self.s[0][0], self.s[0][1], self.smph.counter))
             self.smph.release()
