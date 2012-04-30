@@ -103,7 +103,7 @@ class SocksManager(object):
             sock, bind = socks5_connect((addr, port), *self.s)
             yield sock
         finally:
-            if socks: sock.close()
+            if sock: sock.close()
             logger.info('%s:%d(%s), released.' % (
                     self.s[0][0], self.s[0][1], self.smph.counter))
             self.smph.release()
