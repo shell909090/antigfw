@@ -1,6 +1,3 @@
-syntax: glob
-
-pylint.*
 *.elc
 *.pyc
 *.pyo
