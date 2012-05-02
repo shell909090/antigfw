@@ -162,7 +162,9 @@ def main():
             print 'antigfw starting.'
             return
         runfile.acquire()
-        watcher(uniproxy_runner, *ssh_runner(cfgs))
+        runners = ssh_runner(cfgs)
+        if getattr(config, 'uniproxy', True): runners.append(uniproxy_runner)
+        watcher(runners)
 
     def stop():
         try:

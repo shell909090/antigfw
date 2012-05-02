@@ -5,10 +5,11 @@ Maintainer: Shell Xu <shell909090@gmail.com>
 Build-Depends: debhelper (>= 8), python-all-dev
 Standards-Version: 3.9.3
 X-Python-Version: >= 2.5
-Homepage: https://bitbucket.org/shell909090/antigfw
+Homepage: https://github.com/shell909090/antigfw
 
 Package: antigfw
 Architecture: all
-Depends: ${shlibs:Depends}, ${misc:Depends}, openssh-client (>= 5.0), python-support (>= 0.90), python-gevent
+Depends: ${shlibs:Depends}, ${misc:Depends}, python-support (>= 0.90)
+Recommends: openssh-client, python-gevent
 Description: toolset for cross GFW.
  toolset for cross GFW. auto start multi ssh tunnel.
