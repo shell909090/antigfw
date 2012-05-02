@@ -22,7 +22,7 @@ def import_config(*cfgs):
 
 def initlog(lv, logfile=None):
     rootlog = logging.getLogger()
-    if logfile: handler = logging.FileHandler(config.logfile)
+    if logfile: handler = logging.FileHandler(logfile)
     else: handler = logging.StreamHandler()
     handler = logging.StreamHandler()
     rootlog.addHandler(
@@ -32,7 +32,6 @@ def initlog(lv, logfile=None):
                 '%H:%M:%S')) or handler)
     rootlog.setLevel(lv)
 
-initlog(logging.INFO)
 logger = logging.getLogger('server')
 
 @contextmanager
@@ -47,11 +46,8 @@ def proxy_server(cfgs):
     def get_socks_factory():
         return min(sockcfg, key=lambda x: x.size()).with_socks
 
-    cfg = import_config(*cfgs)
-    for host, port, max_conn in cfg.get('socks', [('127.0.0.1', 7777, 30),]):
-        sockcfg.append(socks.SocksManager(host, port, max_conn=max_conn))
+    config = import_config(*cfgs)
     filter = dofilter.DomainFilter()
-    for filepath in cfg.get('filter', ['gfw',]): filter.loadfile(filepath)
 
     def do_req(req, stream):
         u = urlparse(req.uri)
@@ -72,13 +68,25 @@ def proxy_server(cfgs):
         except Exception, err: logger.exception('unknown')
         sock.close()
 
-    try:
-        server.StreamServer(
-            (cfg.get('localip', ''), cfg.get('localport', 8118)),
-            sock_handler).serve_forever()
-    except KeyboardInterrupt: logger.info('system exit')
+    def init():
+        initlog(logging.INFO, getattr(config, 'logfile', None))
+        socks = getattr(config, 'socks', None)
+        max_conn = getattr(config, 'max_conn', None)
+        if socks is None and max_conn:
+            socks = [('127.0.0.1', srv['proxyport'], max_conn)
+                     for srv in config.servers]
+        for host, port, max_conn in socks:
+            sockcfg.append(socks.SocksManager(host, port, max_conn=max_conn))
+        for filepath in config['filter']: filter.loadfile(filepath)
+        filter.loadfile('gfw')
 
-def main():
-    proxy_server(sys.argv[1:])
+    def mainloop():
+        init()
+        try:
+            server.StreamServer(
+                (config.get('localip', ''), config.get('localport', 8118)),
+                sock_handler).serve_forever()
+        except KeyboardInterrupt: logger.info('system exit')
+    return mainloop
 
-if __name__ == '__main__': main()
+if __name__ == '__main__': proxy_server(sys.argv[1:])()

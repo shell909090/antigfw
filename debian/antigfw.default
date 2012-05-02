@@ -1,12 +1,13 @@
-logfile = ''
-servers = [
+logfile  = ''
+pidfile  = None
+servers  = [
     {'proxyport':'7777', 'username':'user', 'sshhost':'sshhost',
      'sshport':'22', 'sshprivfile':'~/.ssh/id_rsa'},
     ]
+uniproxy = True
 
-socks = [
-    ('127.0.0.1', 7777, 30),
-    ]
-filter = ['gfw',]
-localip = ''
+max_conn  = 30
+socks     = None
+filter    = []
+localip   = ''
 localport = 8118

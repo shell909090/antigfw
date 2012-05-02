@@ -63,13 +63,17 @@ class DomainFilter(object):
             for line in stream: self.add(line.strip().lower())
 
     def loadfile(self, filepath):
-        with open(filepath, 'r') as fi: self.load(fi)
+        try:
+            with open(filepath, 'r') as fi: self.load(fi)
+        except OSError: return False
 
     def save(self, stream):
         for line in sorted(self.getlist()): stream.write(line+'\n')
 
     def savefile(self, filepath):
-        with open(filepath, 'w+') as fo: self.save(fo)
+        try:
+            with open(filepath, 'w+') as fo: self.save(fo)
+        except OSError: return False
 
 def main():
     filter = DomainFilter()

@@ -32,6 +32,7 @@ def daemonized():
     try:
         if os.fork() > 0: sys.exit(0)
     except OSError, e: sys.exit(1)
+    logger.info('daemonized finish')
     return 0
 
 def get_pid_status(pid):
@@ -41,16 +42,19 @@ def get_pid_status(pid):
 
 def kill_stand(pids, timeout):
     t_start = time.time()
+    logger.debug('try stop.')
     for pid in pids: os.kill(pid, signal.SIGTERM)
     while (time.time() - t_start) < timeout and pids:
         pids = [pid for pid in pids if get_pid_status(pid)]
         time.sleep(1)
+    logger.debug('try kill %d.' % len(pids))
     for pid in pids: os.kill(pid, signal.SIGKILL)
+    logger.debug('kill sent.')
 
 class RunfileNotExistError(StandardError): pass
 class RunfileExistError(StandardError): pass
 
-class runfile(object):
+class RunFile(object):
     ERR_NOTEXIST = '%s not exist, daemon not started yet.'
     ERR_EXIST = '%s is exists.\nIf you really wanna run daemon, remove it first.'
 
@@ -112,6 +116,7 @@ def watcher(*runners):
     pids = dict([(runner, runner(0)) for runner in runners])
     def clean_up(signum, frame):
         if signum != signal.SIGTERM: return
+        logger.info('signal TERM, start to stop childs')
         clean_flag = True
         kill_stand(pids.values(), 3)
     signal.signal(signal.SIGTERM, clean_up)
@@ -120,37 +125,38 @@ def watcher(*runners):
         if clean_flag: break
         for runner, pids in pids.iteritems():
             if get_pid_status(pid): continue
-            time.sleep(1)
             pids[runner] = runner(pid)
+        time.sleep(1)
+    logger.info('system exit')
     sys.exit(0)
 
 def ssh_runner(cfgs):
-    runners = []
-    for i in cfgs:
+    def mid_closure(cfg):
         def real_runner(pre_pid):
-            cfg = i.copy()
+            if pre_pid: logger.info('prior ssh stopped, pid %d' % pre_pid)
             args = ['ssh', '-CNq', '-o', 'ServerAliveInterval=30', 
                     '%s@%s' % (cfg['username'], cfg['sshhost']),]
-            if 'sshport' in cfg:
-                args.extend(('-p', cfg['sshport'],))
-            if 'proxyport' in cfg:
-                args.extend(('-D', cfg['proxyport'],))
-            if 'sshprivfile' in cfg:
-                args.extend(('-i', cfg['sshprivfile'],))
-            return os.spawnv(os.P_NOWAIT, '/usr/bin/ssh', args)
-        runners.append(real_runner)
-    return runners
+            if 'sshport' in cfg: args.extend(('-p', cfg['sshport'],))
+            if 'proxyport' in cfg: args.extend(('-D', cfg['proxyport'],))
+            if 'sshprivfile' in cfg: args.extend(('-i', cfg['sshprivfile'],))
+            pid = os.spawnv(os.P_NOWAIT, '/usr/bin/ssh', args)
+            logger.info('ssh starting pid %d with cmdline "%s"' % (
+                    pid, ' '.join(args)))
+            return pid
+        return real_runner
+    return [mid_closure(c) for c in cfgs]
 
 def uniproxy_runner(pre_pid):
     pid = os.fork()
     if pid > 0: return pid
-    uniproxy.proxy_server('/etc/default/antigfw')
+    uniproxy.proxy_server('antigfw', '~/.antigfw', '/etc/default/antigfw')
     sys.exit(0)
 
 def main():
-    runfile = runfile('/var/run/antigfw.pid')
     config = import_config('antigfw', '~/.antigfw', '/etc/default/antigfw')
-    initlog(logging.INFO, getattr(config, 'logfile', None))
+    runfile = getattr(config, 'pidfile', None)
+    if runfile is None: runfile = '/var/run/antigfw.pid'
+    runfile = RunFile(runfile)
 
     def start():
         cfgs = config.servers
@@ -164,7 +170,7 @@ def main():
         runfile.acquire()
         runners = ssh_runner(cfgs)
         if getattr(config, 'uniproxy', True): runners.append(uniproxy_runner)
-        watcher(runners)
+        watcher(*runners)
 
     def stop():
         try:
@@ -184,6 +190,7 @@ def main():
             'restart': restart, 'force-reload': restart}
 
     def inner(argv):
+        initlog(logging.INFO, getattr(config, 'logfile', None))
         if len(argv) <= 2: help()
         else: cmds.get(argv[1], help)()
     return inner
