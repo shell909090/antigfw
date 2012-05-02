@@ -5,12 +5,34 @@
 @author: shell.xu
 '''
 import sys, logging, gevent
-import utils, socks, http, proxy, dofilter
+import socks, http, proxy, dofilter
+from os import path
 from urlparse import urlparse
 from contextlib import contextmanager
 from gevent import socket, server
 
-utils.initlog(logging.INFO)
+def import_config(*cfgs):
+    d = {}
+    for cfg in cfgs:
+        try:
+            with open(path.expanduser(cfg)) as fi:
+                eval(compile(fi.read(), cfg, 'exec'), d)
+        except OSError: pass
+    return dict([(k, v) for k, v in d.iteritems() if not k.startswith('_')])
+
+def initlog(lv, logfile=None):
+    rootlog = logging.getLogger()
+    if logfile: handler = logging.FileHandler(config.logfile)
+    else: handler = logging.StreamHandler()
+    handler = logging.StreamHandler()
+    rootlog.addHandler(
+        handler.setFormatter(
+            logging.Formatter(
+                '%(asctime)s,%(msecs)03d %(name)s[%(levelname)s]: %(message)s',
+                '%H:%M:%S')) or handler)
+    rootlog.setLevel(lv)
+
+initlog(logging.INFO)
 logger = logging.getLogger('server')
 
 @contextmanager
@@ -25,7 +47,7 @@ def proxy_server(cfgs):
     def get_socks_factory():
         return min(sockcfg, key=lambda x: x.size()).with_socks
 
-    cfg = utils.import_config(*cfgs)
+    cfg = import_config(*cfgs)
     for host, port, max_conn in cfg.get('socks', [('127.0.0.1', 7777, 30),]):
         sockcfg.append(socks.SocksManager(host, port, max_conn=max_conn))
     filter = dofilter.DomainFilter()

@@ -8,6 +8,7 @@ import struct, logging
 from contextlib import contextmanager
 from gevent import socket, coros
 
+__all__ = ['socks5_connect', 'SocksManager',]
 logger = logging.getLogger('socks')
 
 PROXY_TYPE_SOCKS4 = 1

@@ -14,8 +14,8 @@
 @date: 2011-04-07
 @author: shell.xu
 '''
-import os, sys, imp
-import signal, logging
+import os, sys, signal, logging
+from uniproxy import proxy_server, import_config, initlog
 from os import path
 
 logger = logging.getLogger('antigfw')
@@ -107,67 +107,68 @@ class lockfile(object):
         fcntl.flock(self.file.fileno(), fcntl.LOCK_UN)
         self.file.close()
 
-def watcher(functory, cfgs):
+def watcher(*runners):
     clean_flag = False
-    pids = [functory(0, cfg) for cfg in cfgs]
+    pids = dict([(runner, runner(0)) for runner in runners])
     def clean_up(signum, frame):
         if signum != signal.SIGTERM: return
         clean_flag = True
-        kill_stand(pids, 3)
+        kill_stand(pids.values(), 3)
     signal.signal(signal.SIGTERM, clean_up)
     while True:
-        os.wait()[0]
+        os.wait()
         if clean_flag: break
-        for i, pid in enumerate(pids):
+        for runner, pids in pids.iteritems():
             if get_pid_status(pid): continue
             time.sleep(1)
-            pids[i] = functory(pid, cfgs[i])
+            pids[runner] = runner(pid)
     sys.exit(0)
 
-def import_config(*cfgs):
-    d = {}
-    for cfg in cfgs:
-        try:
-            with open(path.expanduser(cfg)) as fi:
-                eval(compile(fi.read(), cfg, 'exec'), d)
-        except OSError: pass
-    return dict([(k, v) for k, v in d.iteritems() if not k.startswith('_')])
+def ssh_runner(cfgs):
+    runners = []
+    for i in cfgs:
+        def real_runner(pre_pid):
+            cfg = i.copy()
+            args = ['ssh', '-CNq', '-o', 'ServerAliveInterval=30', 
+                    '%s@%s' % (cfg['username'], cfg['sshhost']),]
+            if 'sshport' in cfg:
+                args.extend(('-p', cfg['sshport'],))
+            if 'proxyport' in cfg:
+                args.extend(('-D', cfg['proxyport'],))
+            if 'sshprivfile' in cfg:
+                args.extend(('-i', cfg['sshprivfile'],))
+            return os.spawnv(os.P_NOWAIT, '/usr/bin/ssh', args)
+        runners.append(real_runner)
+    return runners
 
-def ssh_runner(pre_pid, cfg):
-    args = ['ssh', '-CNq', '-o', 'ServerAliveInterval=30', 
-            '%s@%s' % (cfg['username'], cfg['sshhost']),]
-    if 'sshport' in cfg:
-        args.extend(('-p', cfg['sshport'],))
-    if 'proxyport' in cfg:
-        args.extend(('-D', cfg['proxyport'],))
-    if 'sshprivfile' in cfg:
-        args.extend(('-i', cfg['sshprivfile'],))
-    return os.spawnv(os.P_NOWAIT, '/usr/bin/ssh', args)
+def uniproxy_runner(pre_pid):
+    pid = os.fork()
+    if pid > 0: return pid
+    uniproxy.proxy_server('/etc/default/antigfw')
+    sys.exit(0)
 
 def main():
     runfile = runfile('/var/run/antigfw.pid')
     config = import_config('antigfw', '~/.antigfw', '/etc/default/antigfw')
-    if hasattr(config, 'logfile') and config.logfile:
-        handler = logging.FileHandler(config.logfile)
-    else: handler = logging.StreamHandler()
-    handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
-    logger.addHandler(handler)
-    logger.setLevel(logging.INFO)
+    initlog(logging.INFO, getattr(config, 'logfile', None))
 
     def start():
         cfgs = config.servers
-        runfile.chk_state(False)
+        try: runfile.chk_state(False)
+        except RunfileExistError:
+            print 'antigfw already started.'
+            return
         if daemonized() > 0:
-            print 'antigfw started.'
+            print 'antigfw starting.'
             return
         runfile.acquire()
-        watcher(ssh_runner, cfgs = cfgs)
+        watcher(uniproxy_runner, *ssh_runner(cfgs))
 
     def stop():
         try:
             runfile.kill_stand()
             runfile.release()
-        except RunfileNotExistError: pass
+        except RunfileNotExistError: print 'antigfw not started yet.'
         print 'antigfw stoped.'
 
     def restart():
