@@ -92,18 +92,24 @@ class SocksManager(object):
                  rdns=True, max_conn=10):
         self.s = ((addr, port), username, password, rdns)
         self.smph = coros.Semaphore(max_conn)
+        self.max_conn = max_conn
+
+    def size(self):
+        return self.max_conn - self.smph.counter
 
     @contextmanager
     def with_socks(self, addr, port):
         self.smph.acquire()
-        logger.info('%s:%d(%s) allocated.' % (
-                self.s[0][0], self.s[0][1], self.smph.counter))
+        logger.info('%s:%d %d/%d allocated.' % (
+                self.s[0][0], self.s[0][1],
+                self.size(), self.max_conn))
         sock = None
         try:
             sock, bind = socks5_connect((addr, port), *self.s)
             yield sock
         finally:
             if sock: sock.close()
-            logger.info('%s:%d(%s), released.' % (
-                    self.s[0][0], self.s[0][1], self.smph.counter))
+            logger.info('%s:%d %d/%d, released.' % (
+                    self.s[0][0], self.s[0][1],
+                    self.size(), self.max_conn))
             self.smph.release()

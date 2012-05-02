@@ -8,7 +8,7 @@ import sys, logging, gevent
 import utils, socks, http, proxy, dofilter
 from urlparse import urlparse
 from contextlib import contextmanager
-from gevent import socket, dns, server
+from gevent import socket, server
 
 utils.initlog(logging.INFO)
 logger = logging.getLogger('server')
@@ -23,8 +23,7 @@ def with_sock(addr, port):
 def proxy_server(cfgs):
     sockcfg = []
     def get_socks_factory():
-        s = sockcfg[0]
-        return s.with_socks
+        return min(sockcfg, key=lambda x: x.size()).with_socks
 
     cfg = utils.import_config(*cfgs)
     for host, port, max_conn in cfg.get('socks', [('127.0.0.1', 7777, 30),]):
@@ -36,7 +35,8 @@ def proxy_server(cfgs):
         u = urlparse(req.uri)
         usesocks = (u.netloc or u.path).split(':', 1)[0] in filter
         logger.info('%s %s %s' % (
-                req.method, req.uri, 'socks' if usesocks else 'direct'))
+                req.method, req.uri.split('?', 1)[0],
+                'socks' if usesocks else 'direct'))
         func = proxy.connect if req.method.upper() == 'CONNECT' else proxy.http
         sock_factory = get_socks_factory() if usesocks else with_sock
         r = func(req, stream, sock_factory)
@@ -46,14 +46,15 @@ def proxy_server(cfgs):
         stream = sock.makefile()
         try:
             while do_req(proxy.recv_headers(stream), stream): pass
-        except EOFError: pass
+        except (EOFError, socket.error): pass
         except Exception, err: logger.exception('unknown')
         sock.close()
 
-    serv = server.StreamServer(
-        (cfg.get('localip', ''), cfg.get('localport', 8118)),
-        sock_handler)
-    serv.serve_forever()
+    try:
+        server.StreamServer(
+            (cfg.get('localip', ''), cfg.get('localport', 8118)),
+            sock_handler).serve_forever()
+    except KeyboardInterrupt: logger.info('system exit')
 
 def main():
     proxy_server(sys.argv[1:])
