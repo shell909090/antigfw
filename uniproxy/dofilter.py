@@ -65,7 +65,7 @@ class DomainFilter(object):
     def loadfile(self, filepath):
         try:
             with open(filepath, 'r') as fi: self.load(fi)
-        except OSError: return False
+        except (OSError, IOError): return False
 
     def save(self, stream):
         for line in sorted(self.getlist()): stream.write(line+'\n')
@@ -73,7 +73,7 @@ class DomainFilter(object):
     def savefile(self, filepath):
         try:
             with open(filepath, 'w+') as fo: self.save(fo)
-        except OSError: return False
+        except (OSError, IOError): return False
 
 def main():
     filter = DomainFilter()

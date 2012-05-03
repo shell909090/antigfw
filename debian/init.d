@@ -152,21 +152,19 @@ def watcher(*runners):
         time.sleep(1)
     logger.info('system exit')
 
-def ssh_runner(cfgs):
-    def mid_closure(cfg):
-        def real_runner(pre_pid):
-            if pre_pid: logger.info('prior ssh stopped, pid %d' % pre_pid)
-            args = ['ssh', '-CNq', '-o', 'ServerAliveInterval=30', 
-                    '%s@%s' % (cfg['username'], cfg['sshhost']),]
-            if 'sshport' in cfg: args.extend(('-p', cfg['sshport'],))
-            if 'proxyport' in cfg: args.extend(('-D', cfg['proxyport'],))
-            if 'sshprivfile' in cfg: args.extend(('-i', cfg['sshprivfile'],))
-            pid = os.spawnv(os.P_NOWAIT, '/usr/bin/ssh', args)
-            logger.info('ssh starting pid %d with cmdline "%s"' % (
-                    pid, ' '.join(args)))
-            return pid
-        return real_runner
-    return [mid_closure(c) for c in cfgs]
+def ssh_runner(cfg):
+    def real_runner(pre_pid):
+        if pre_pid: logger.info('prior ssh stopped, pid %d' % pre_pid)
+        args = ['ssh', '-CNq', '-o', 'ServerAliveInterval=30', 
+                '%s@%s' % (cfg['username'], cfg['sshhost']),]
+        if 'sshport' in cfg: args.extend(('-p', cfg['sshport'],))
+        if 'proxyport' in cfg: args.extend(('-D', cfg['proxyport'],))
+        if 'sshprivfile' in cfg: args.extend(('-i', cfg['sshprivfile'],))
+        pid = os.spawnv(os.P_NOWAIT, '/usr/bin/ssh', args)
+        logger.info('ssh starting pid %d with cmdline "%s"' % (
+                pid, ' '.join(args)))
+        return pid
+    return real_runner
 
 def uniproxy_runner(pre_pid):
     pid = os.fork()
@@ -193,7 +191,7 @@ def main():
         runfile.acquire()
         try:
             try:
-                runners = ssh_runner(cfgs)
+                runners = [ssh_runner(cfg) for cfg in cfgs]
                 if config.get('uniproxy', True): runners.append(uniproxy_runner)
                 watcher(*runners)
             except: logger.exception('unknown')

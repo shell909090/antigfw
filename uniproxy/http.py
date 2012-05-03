@@ -62,11 +62,20 @@ DEFAULT_PAGES = {
     505:('HTTP Version Not Supported', 'Cannot fulfill request.'),
 }
 
+def dummy_write(d): return
+
 class HttpMessage(object):
     def __init__(self): self.headers = []
 
-    def add_header(self, h, v):
-        self.headers.append([h.lower(), v])
+    def add_header(self, k, v):
+        self.headers.append([k.lower(), v])
+
+    def set_header(self, k, v):
+        for h in self.headers:
+            if h[0] == k:
+                h[1] = v
+                return
+        self.add_header(k, v)
 
     def get_header(self, k, v=None):
         for ks, vs in self.headers:
@@ -89,7 +98,7 @@ class HttpMessage(object):
                 self.add_header(h.strip(), v.strip())
             else: self.add_header(h.strip(), line.strip())
 
-    def recv_body(self, stream, on_body, hasbody=False, raw=False):
+    def recv_body(self, stream, on_body=dummy_write, hasbody=False, raw=False):
         if self.get_header('transfer-encoding', 'identity') != 'identity':
             logger.debug('recv body on chunk mode')
             chunk_size = 1
@@ -154,3 +163,12 @@ def recv_headers(stream, cls=HttpRequest):
     msg = cls(*r)
     msg.recv_header(stream)
     return msg
+
+def response_http(req, stream, code, phrase=None, body=None):
+    req.recv_body(stream)
+    if not phrase: phrase = DEFAULT_PAGES[code][0]
+    res = HttpResponse(req.version, code, phrase)
+    if body: res.set_header('content-length', str(len(body)))
+    res.sendto(stream)
+    if body: stream.write(body)
+    stream.flush()

@@ -48,16 +48,48 @@ def proxy_server(*cfgs):
     config = import_config(*cfgs)
     filter = dofilter.DomainFilter()
 
+    def filter_load():
+        for filepath in config['filter']: filter.loadfile(filepath)
+        filter.loadfile('gfw')
+
+    def default(req, stream):
+        http.response_http(req, stream, 404, body='Page not found')
+
+    def reload(req, stream):
+        filter_load()
+        http.response_http(req, stream, 200, body='done')
+
+    def socks_stat(req, stream):
+        namemap = {}
+        if not config.get('socks', None):
+            for srv in config['servers']:
+                namemap['127.0.0.1:%s' % srv['proxyport']] = \
+                    '%s@%s' % (srv['username'], srv['sshhost'])
+        def fmt_rcd(s):
+            n, r = s.stat()
+            return '%s	%s\r\n' % (namemap.get(n, n), r)
+        body = ''.join([fmt_rcd(s) for s in sockcfg])
+        http.response_http(req, stream, 200, body=body)
+
+    srv_urls = {'/reload': reload, '/stat': socks_stat}
+
     def do_req(req, stream):
         u = urlparse(req.uri)
-        usesocks = (u.netloc or u.path).split(':', 1)[0] in filter
+        if req.method.upper() == 'CONNECT':
+            hostname = u.path
+            func = proxy.connect
+        else:
+            if not u.netloc:
+                logger.info('manager %s' % (u.path,))
+                return srv_urls.get(u.path, default)(req, stream)
+            hostname = u.netloc
+            func = proxy.http
+        usesocks = hostname.split(':', 1)[0] in filter
         logger.info('%s %s %s' % (
                 req.method, req.uri.split('?', 1)[0],
                 'socks' if usesocks else 'direct'))
-        func = proxy.connect if req.method.upper() == 'CONNECT' else proxy.http
         sock_factory = get_socks_factory() if usesocks else with_sock
-        r = func(req, stream, sock_factory)
-        return r
+        return func(req, stream, sock_factory)
 
     def sock_handler(sock, addr):
         stream = sock.makefile()
@@ -76,11 +108,7 @@ def proxy_server(*cfgs):
                          for srv in config['servers']]
         for host, port, max_conn in socks_srv:
             sockcfg.append(socks.SocksManager(host, port, max_conn=max_conn))
-        for filepath in config['filter']:
-            try: filter.loadfile(filepath)
-            except (OSError, IOError): pass
-        try: filter.loadfile('gfw')
-        except (OSError, IOError): pass
+        filter_load()
 
     def mainloop():
         init()

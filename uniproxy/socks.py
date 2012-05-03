@@ -98,6 +98,9 @@ class SocksManager(object):
     def size(self):
         return self.max_conn - self.smph.counter
 
+    def stat(self):
+        return '%s:%d' % (self.s[0][0], self.s[0][1]), '%d/%d' % (self.size(), self.max_conn)
+
     @contextmanager
     def with_socks(self, addr, port):
         self.smph.acquire()
