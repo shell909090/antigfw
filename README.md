@@ -45,3 +45,9 @@
 ## 自动配置 ##
 
 * socks: 当socks=None，并且servers有配置的时候，会自动为每个server产生一条socks记录。
+
+# Issus #
+
+## lintian ##
+W: antigfw source: diff-contains-git-control-dir .git
+W: antigfw: init.d-script-uses-usr-interpreter etc/init.d/antigfw /usr/bin/python

@@ -1,4 +1,4 @@
-logfile  = ''
+logfile  = '/var/log/antigfw.log'
 pidfile  = None
 servers  = [
     {'proxyport':'7777', 'username':'user', 'sshhost':'sshhost',
@@ -8,6 +8,6 @@ uniproxy = True
 
 max_conn  = 30
 socks     = None
-filter    = []
+filter    = ['/etc/uniproxy/gfw',]
 localip   = ''
 localport = 8118

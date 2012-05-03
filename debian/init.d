@@ -14,9 +14,28 @@
 @date: 2011-04-07
 @author: shell.xu
 '''
-import os, sys, signal, logging
-from uniproxy import proxy_server, import_config, initlog
+import os, sys, time, signal, logging
 from os import path
+
+def import_config(*cfgs):
+    d = {}
+    for cfg in reversed(cfgs):
+        try:
+            with open(path.expanduser(cfg)) as fi:
+                eval(compile(fi.read(), cfg, 'exec'), d)
+        except (OSError, IOError): pass
+    return dict([(k, v) for k, v in d.iteritems() if not k.startswith('_')])
+
+def initlog(lv, logfile=None):
+    rootlog = logging.getLogger()
+    if logfile: handler = logging.FileHandler(logfile)
+    else: handler = logging.StreamHandler()
+    handler.setFormatter(
+        logging.Formatter(
+            '%(asctime)s,%(msecs)03d %(name)s[%(levelname)s]: %(message)s',
+            '%H:%M:%S'))
+    rootlog.addHandler(handler)
+    rootlog.setLevel(lv)
 
 logger = logging.getLogger('antigfw')
 
@@ -43,12 +62,16 @@ def get_pid_status(pid):
 def kill_stand(pids, timeout):
     t_start = time.time()
     logger.debug('try stop.')
-    for pid in pids: os.kill(pid, signal.SIGTERM)
+    for pid in pids:
+        try: os.kill(pid, signal.SIGTERM)
+        except OSError: pass
     while (time.time() - t_start) < timeout and pids:
         pids = [pid for pid in pids if get_pid_status(pid)]
         time.sleep(1)
     logger.debug('try kill %d.' % len(pids))
-    for pid in pids: os.kill(pid, signal.SIGKILL)
+    for pid in pids:
+        try: os.kill(pid, signal.SIGKILL)
+        except OSError: pass
     logger.debug('kill sent.')
 
 class RunfileNotExistError(StandardError): pass
@@ -123,12 +146,11 @@ def watcher(*runners):
     while True:
         os.wait()
         if clean_flag: break
-        for runner, pids in pids.iteritems():
+        for runner, pid in pids.iteritems():
             if get_pid_status(pid): continue
             pids[runner] = runner(pid)
         time.sleep(1)
     logger.info('system exit')
-    sys.exit(0)
 
 def ssh_runner(cfgs):
     def mid_closure(cfg):
@@ -149,7 +171,8 @@ def ssh_runner(cfgs):
 def uniproxy_runner(pre_pid):
     pid = os.fork()
     if pid > 0: return pid
-    uniproxy.proxy_server('antigfw', '~/.antigfw', '/etc/default/antigfw')
+    from uniproxy import proxy_server
+    proxy_server('antigfw', '~/.antigfw', '/etc/default/antigfw')()
     sys.exit(0)
 
 def main():
@@ -159,7 +182,7 @@ def main():
     runfile = RunFile(runfile)
 
     def start():
-        cfgs = config.servers
+        cfgs = config['servers']
         try: runfile.chk_state(False)
         except RunfileExistError:
             print 'antigfw already started.'
@@ -168,9 +191,13 @@ def main():
             print 'antigfw starting.'
             return
         runfile.acquire()
-        runners = ssh_runner(cfgs)
-        if config.get('uniproxy', True): runners.append(uniproxy_runner)
-        watcher(*runners)
+        try:
+            try:
+                runners = ssh_runner(cfgs)
+                if config.get('uniproxy', True): runners.append(uniproxy_runner)
+                watcher(*runners)
+            except: logger.exception('unknown')
+        finally: runfile.release()
 
     def stop():
         try:
@@ -191,7 +218,7 @@ def main():
 
     def inner(argv):
         initlog(logging.INFO, config.get('logfile', None))
-        if len(argv) <= 2: help()
+        if len(argv) < 2: help()
         else: cmds.get(argv[1], help)()
     return inner
 

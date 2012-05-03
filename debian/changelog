@@ -1,6 +1,12 @@
+antigfw (1.0) unstable; urgency=low
+
+  * add uniproxy.
+
+ -- Shell Xu <shell909090@gmail.com>  Thu, 03 May 2012 10:21:28 +0800
+
 antigfw (0.5) unstable; urgency=low
 
-  * restruct and repacking
+  * restruct and repacking.
 
  -- Shell Xu <shell909090@gmail.com>  Wed, 21 Mar 2012 17:45:43 +0800
 

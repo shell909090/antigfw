@@ -13,23 +13,22 @@ from gevent import socket, server
 
 def import_config(*cfgs):
     d = {}
-    for cfg in cfgs:
+    for cfg in reversed(cfgs):
         try:
             with open(path.expanduser(cfg)) as fi:
                 eval(compile(fi.read(), cfg, 'exec'), d)
-        except OSError: pass
+        except (OSError, IOError): pass
     return dict([(k, v) for k, v in d.iteritems() if not k.startswith('_')])
 
 def initlog(lv, logfile=None):
     rootlog = logging.getLogger()
     if logfile: handler = logging.FileHandler(logfile)
     else: handler = logging.StreamHandler()
-    handler = logging.StreamHandler()
-    rootlog.addHandler(
-        handler.setFormatter(
-            logging.Formatter(
-                '%(asctime)s,%(msecs)03d %(name)s[%(levelname)s]: %(message)s',
-                '%H:%M:%S')) or handler)
+    handler.setFormatter(
+        logging.Formatter(
+            '%(asctime)s,%(msecs)03d %(name)s[%(levelname)s]: %(message)s',
+            '%H:%M:%S'))
+    rootlog.addHandler(handler)
     rootlog.setLevel(lv)
 
 logger = logging.getLogger('server')
@@ -41,7 +40,7 @@ def with_sock(addr, port):
     try: yield sock
     finally: sock.close()
 
-def proxy_server(cfgs):
+def proxy_server(*cfgs):
     sockcfg = []
     def get_socks_factory():
         return min(sockcfg, key=lambda x: x.size()).with_socks
@@ -77,8 +76,11 @@ def proxy_server(cfgs):
                          for srv in config['servers']]
         for host, port, max_conn in socks_srv:
             sockcfg.append(socks.SocksManager(host, port, max_conn=max_conn))
-        for filepath in config['filter']: filter.loadfile(filepath)
-        filter.loadfile('gfw')
+        for filepath in config['filter']:
+            try: filter.loadfile(filepath)
+            except (OSError, IOError): pass
+        try: filter.loadfile('gfw')
+        except (OSError, IOError): pass
 
     def mainloop():
         init()
@@ -89,4 +91,4 @@ def proxy_server(cfgs):
         except KeyboardInterrupt: logger.info('system exit')
     return mainloop
 
-if __name__ == '__main__': proxy_server(sys.argv[1:])()
+if __name__ == '__main__': proxy_server(*sys.argv[1:])()

@@ -8,8 +8,8 @@ from distutils.core import setup
 
 version = '1.0'
 description = 'toolset for cross GFW'
-long_description = ' toolset for cross GFW, include such tools.
-  * auto start multi ssh tunnel
+long_description = ' toolset for cross GFW, include such tools.\
+  * auto start multi ssh tunnel\
   * http proxy use socks as upstream'
 
 setup(name='antigfw', version=version,
