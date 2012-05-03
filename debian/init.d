@@ -154,7 +154,7 @@ def uniproxy_runner(pre_pid):
 
 def main():
     config = import_config('antigfw', '~/.antigfw', '/etc/default/antigfw')
-    runfile = getattr(config, 'pidfile', None)
+    runfile = config.get('pidfile', None)
     if runfile is None: runfile = '/var/run/antigfw.pid'
     runfile = RunFile(runfile)
 
@@ -169,7 +169,7 @@ def main():
             return
         runfile.acquire()
         runners = ssh_runner(cfgs)
-        if getattr(config, 'uniproxy', True): runners.append(uniproxy_runner)
+        if config.get('uniproxy', True): runners.append(uniproxy_runner)
         watcher(*runners)
 
     def stop():
@@ -190,7 +190,7 @@ def main():
             'restart': restart, 'force-reload': restart}
 
     def inner(argv):
-        initlog(logging.INFO, getattr(config, 'logfile', None))
+        initlog(logging.INFO, config.get('logfile', None))
         if len(argv) <= 2: help()
         else: cmds.get(argv[1], help)()
     return inner

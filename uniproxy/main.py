@@ -69,13 +69,13 @@ def proxy_server(cfgs):
         sock.close()
 
     def init():
-        initlog(logging.INFO, getattr(config, 'logfile', None))
-        socks = getattr(config, 'socks', None)
-        max_conn = getattr(config, 'max_conn', None)
-        if socks is None and max_conn:
-            socks = [('127.0.0.1', srv['proxyport'], max_conn)
-                     for srv in config.servers]
-        for host, port, max_conn in socks:
+        initlog(logging.INFO, config.get('logfile', None))
+        socks_srv = config.get('socks', None)
+        max_conn = config.get('max_conn', None)
+        if socks_srv is None and max_conn:
+            socks_srv = [('127.0.0.1', int(srv['proxyport']), max_conn)
+                         for srv in config['servers']]
+        for host, port, max_conn in socks_srv:
             sockcfg.append(socks.SocksManager(host, port, max_conn=max_conn))
         for filepath in config['filter']: filter.loadfile(filepath)
         filter.loadfile('gfw')

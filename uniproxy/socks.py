@@ -102,8 +102,7 @@ class SocksManager(object):
     def with_socks(self, addr, port):
         self.smph.acquire()
         logger.info('%s:%d %d/%d allocated.' % (
-                self.s[0][0], self.s[0][1],
-                self.size(), self.max_conn))
+                self.s[0][0], self.s[0][1], self.size(), self.max_conn))
         sock = None
         try:
             sock, bind = socks5_connect((addr, port), *self.s)
@@ -111,6 +110,5 @@ class SocksManager(object):
         finally:
             if sock: sock.close()
             logger.info('%s:%d %d/%d, released.' % (
-                    self.s[0][0], self.s[0][1],
-                    self.size(), self.max_conn))
+                    self.s[0][0], self.s[0][1], self.size(), self.max_conn))
             self.smph.release()

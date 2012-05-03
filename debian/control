@@ -11,5 +11,7 @@ Package: antigfw
 Architecture: all
 Depends: ${shlibs:Depends}, ${misc:Depends}, python-support (>= 0.90)
 Recommends: openssh-client, python-gevent
-Description: toolset for cross GFW.
- toolset for cross GFW. auto start multi ssh tunnel.
+Description: toolset for cross GFW
+ toolset for cross GFW, include such tools.
+  * auto start multi ssh tunnel
+  * http proxy use socks as upstream
