@@ -4,4 +4,4 @@
 @date: 2012-05-02
 @author: shell.xu
 '''
-from main import proxy_server
+from main import main

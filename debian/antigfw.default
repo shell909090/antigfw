@@ -1,6 +1,6 @@
 logfile  = '/var/log/antigfw.log'
 loglevel = 'WARNING'
-pidfile  = None
+pidfile  = '/var/run/antigfw.pid'
 servers  = [
     {'proxyport':'7777', 'username':'user', 'sshhost':'sshhost',
      'sshport':'22', 'sshprivfile':'~/.ssh/id_rsa'},

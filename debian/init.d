@@ -81,8 +81,8 @@ class RunFile(object):
     ERR_NOTEXIST = '%s not exist, daemon not started yet.'
     ERR_EXIST = '%s is exists.\nIf you really wanna run daemon, remove it first.'
 
-    def __init__(self, filename, content = None):
-        self.filename = filename
+    def __init__(self, filename): self.bind(filename)
+    def bind(self, filename): self.filename = filename
 
     def chk_state(self, in_run):
         b = path.exists(self.filename)
@@ -122,13 +122,13 @@ class RunFile(object):
 
 class lockfile(object):
 
-    def __init__(self, filename, share = False):
-        self.filename = filename
-        self.share = share
+    def __init__(self, filename, share=False):
+        self.filename, self.share = filename, share
 
     def __enter__(self):
         self.file = open(self.filename, 'r')
-        fcntl.flock(self.file.fileno(), fcntl.LOCK_SH if self.share else fcntl.LOCK_EX)
+        fcntl.flock(self.file.fileno(),
+                    fcntl.LOCK_SH if self.share else fcntl.LOCK_EX)
 
     def __exit__(self, type, value, traceback):
         fcntl.flock(self.file.fileno(), fcntl.LOCK_UN)
@@ -175,7 +175,7 @@ def uniproxy_runner(pre_pid):
 
 def proccmd():
     config = {}
-    runfile = None
+    runfile = RunFile(None)
 
     def start():
         cfgs = config['servers']
@@ -213,22 +213,21 @@ def proccmd():
             'restart': restart, 'force-reload': restart}
 
     def init(*cfgs):
-        global runfile
-        if cfgs: config.update(import_config(cfgs))
+        if cfgs: config.update(import_config(*cfgs))
         initlog(getattr(logging, config.get('loglevel', 'WARNING')),
                 config.get('logfile', None))
-        runfile = RunFile(config.get('pidfile', '/var/run/antigfw.pid'))
+        runfile.bind(config.get('pidfile', '/var/run/antigfw.pid'))
 
-    def handler(arg):
+    def handler(argv):
         if not argv: help()
-        else: cmds.get(arg, help)()
+        else: cmds.get(argv[0], help)()
     def final(): pass
     return init, handler, final
 
 def main():
     init, handler, final = proccmd()
     init('antigfw', '~/.antigfw', '/etc/default/antigfw')
-    try: handler(sys.argv[1])
+    try: handler(sys.argv[1:])
     finally: final()
 
 if __name__ == '__main__': main()
