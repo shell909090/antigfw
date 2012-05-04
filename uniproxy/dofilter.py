@@ -11,8 +11,8 @@ logger = logging.getLogger('filter')
 
 class DomainFilter(object):
 
-    def __init__(self):
-        self.domains = {}
+    def __init__(self): self.domains = {}
+    def empty(self): self.domains = {}
 
     def add(self, domain):
         doptr, chunk, domain = self.domains, domain.split('.'), domain.lower()

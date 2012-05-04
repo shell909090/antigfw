@@ -169,15 +169,13 @@ def ssh_runner(cfg):
 def uniproxy_runner(pre_pid):
     pid = os.fork()
     if pid > 0: return pid
-    from uniproxy import proxy_server
-    proxy_server('antigfw', '~/.antigfw', '/etc/default/antigfw')()
+    from uniproxy import main
+    main('antigfw', '~/.antigfw', '/etc/default/antigfw')
     sys.exit(0)
 
-def main():
-    config = import_config('antigfw', '~/.antigfw', '/etc/default/antigfw')
-    runfile = config.get('pidfile', None)
-    if runfile is None: runfile = '/var/run/antigfw.pid'
-    runfile = RunFile(runfile)
+def proccmd():
+    config = {}
+    runfile = None
 
     def start():
         cfgs = config['servers']
@@ -201,7 +199,7 @@ def main():
         try:
             runfile.kill_stand()
             runfile.release()
-        except RunfileNotExistError: print 'antigfw not started yet.'
+        except RunfileNotExistError: print 'kill force.'
         print 'antigfw stoped.'
 
     def restart():
@@ -214,10 +212,23 @@ def main():
     cmds = {'start': start, 'stop': stop,
             'restart': restart, 'force-reload': restart}
 
-    def inner(argv):
-        initlog(logging.INFO, config.get('logfile', None))
-        if len(argv) < 2: help()
-        else: cmds.get(argv[1], help)()
-    return inner
+    def init(*cfgs):
+        global runfile
+        if cfgs: config.update(import_config(cfgs))
+        initlog(getattr(logging, config.get('loglevel', 'WARNING')),
+                config.get('logfile', None))
+        runfile = RunFile(config.get('pidfile', '/var/run/antigfw.pid'))
 
-if __name__ == '__main__': main()(sys.argv)
+    def handler(arg):
+        if not argv: help()
+        else: cmds.get(arg, help)()
+    def final(): pass
+    return init, handler, final
+
+def main():
+    init, handler, final = proccmd()
+    init('antigfw', '~/.antigfw', '/etc/default/antigfw')
+    try: handler(sys.argv[1])
+    finally: final()
+
+if __name__ == '__main__': main()

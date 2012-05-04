@@ -34,7 +34,8 @@
 默认绑定到本地的8118端口，使用gfw作为滤表文件名。
 向命令行传入配置文件路径可以加载一个到多个配置文件，配置文件为python格式，其中可以定义以下变量：
 
-* logfile: 记录到哪个日志文件
+* logfile: 记录到哪个日志文件。
+* loglevel: 记录级别，默认WARNING。
 * localip: 绑定到哪个IP，默认0.0.0.0。
 * localport: 绑定到哪个端口，默认8118。
 * socks: 一个列表，每个元素为(addr, port, max_conn)，指名一个socksv5代理的地址，端口，最大连接。
@@ -49,5 +50,5 @@
 # Issus #
 
 ## lintian ##
-W: antigfw source: diff-contains-git-control-dir .git
-W: antigfw: init.d-script-uses-usr-interpreter etc/init.d/antigfw /usr/bin/python
+> W: antigfw source: diff-contains-git-control-dir .git
+> W: antigfw: init.d-script-uses-usr-interpreter etc/init.d/antigfw /usr/bin/python
