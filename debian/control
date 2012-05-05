@@ -8,7 +8,7 @@ X-Python-Version: >= 2.5
 Homepage: https://github.com/shell909090/antigfw
 
 Package: antigfw
-Architecture: any
+Architecture: all
 Depends: ${shlibs:Depends}, ${misc:Depends}, python, python-support (>= 0.90)
 Recommends: openssh-client, python-gevent
 Description: toolset for cross GFW
