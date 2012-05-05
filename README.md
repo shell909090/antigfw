@@ -1,3 +1,23 @@
+# 简述 #
+
+## 目标 ##
+一体化的自动翻墙工具，为多人共享一到两个翻墙帐号，实现流畅的翻墙而作。
+系统分为两个部分，uniproxy和antigfw。antigfw是一套配置-启动-监管脚本，用于启动和管理ssh以及uniproxy。uniproxy负责实施代理分流，将需要代理和不需要代理的流量分离开。
+
+## HOWTO ##
+
+1. 安装python-gevent和openssh-client包，并且有一个以上可以用于翻墙的ssh帐号。
+2. 在翻墙帐号上设定密钥而非密码(将你的公钥导出到~/.ssh/authorized_keys文件，具体参照这里*TODO*)。
+3. 设定/etc/default/antigfw文件，修改其中的servers记录。
+4. 用/etc/init.d/antigfw restart重启服务。
+5. 在浏览器上设定服务器的8118端口为代理，类型为http代理，如：192.168.1.8:8118(其中192.168.1.8为你启动antigfw服务的机器IP)。
+6. 如果有iptables防火墙，开放8118端口。
+
+## 管理 ##
+如果某个域名需要被添加到翻墙列表中，修改/etc/uniproxy/gfw，一行一条记录，然后访问[http://192.168.1.8:8118/load](http://192.168.1.8:8118/load)。系统会重新读取gfw文件。另外，欢迎将你的gfw文件的补丁发送给我。
+如果你想要看ssh代理的使用状况，当前有多少页面正在处理，可以访问[http://192.168.1.8:8118/stat](http://192.168.1.8:8118/stat)。
+如果你
+
 # antigfw #
 
 ## 项目目的 ##
@@ -39,16 +59,22 @@
 * localip: 绑定到哪个IP，默认0.0.0.0。
 * localport: 绑定到哪个端口，默认8118。
 * socks: 一个列表，每个元素为(addr, port, max_conn)，指名一个socksv5代理的地址，端口，最大连接。
-  默认[('127.0.0.1', 7777, 10),]。
 * filter: 一个列表，每个元素都是字符串，表示滤表文件名。默认gfw。
-* max_conn: 用于自动配置socks中的max_conn默认值。
 
 ## 自动配置 ##
 
 * socks: 当socks=None，并且servers有配置的时候，会自动为每个server产生一条socks记录。
+* max\_conn: 用于自动配置socks中的max\_conn默认值。
 
 # Issus #
+
+## bug report ##
+有问题可以向项目主页[http://github.com/shell909090/antigfw](http://github.com/shell909090/antigfw)提交issus，或者向[我的邮箱](mailto:shell909090@gmail.com)发送信件。
 
 ## lintian ##
 > W: antigfw source: diff-contains-git-control-dir .git
 > W: antigfw: init.d-script-uses-usr-interpreter etc/init.d/antigfw /usr/bin/python
+
+## TODO ##
+
+* gfw_tester: gfw文件检测工具，用于测试有多少域名可以直接访问。
