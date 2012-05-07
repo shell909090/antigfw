@@ -75,6 +75,7 @@ def socks5_connect(target, proxy, username=None, password=None, rdns=True):
 
     # connect response
     resp = stream.read(4)
+    if not resp: raise EOFError()
     if resp[0] != "\x05": raise GeneralProxyError(1)
     if resp[1] != "\x00":
         if ord(resp[1]) <= 8: raise Socks5Error(ord(resp[1]))

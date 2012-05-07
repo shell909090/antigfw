@@ -100,7 +100,7 @@ def proxy_server():
             ['', 'avtive conntions',] + worklist
         response_http(req, stream, 200, body='\r\n'.join(body))
 
-    srv_urls = {'/reload': mgr_reload, '/kill': mgr_quit,
+    srv_urls = {'/reload': mgr_reload, '/quit': mgr_quit,
                 '/stat': mgr_socks_stat}
 
     def do_req(req, stream):
