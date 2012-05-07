@@ -1,0 +1,41 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+'''
+@date: 2012-05-07
+@author: shell.xu
+'''
+import sys, urllib, getopt
+from gevent import monkey, pool, Timeout
+
+monkey.patch_all()
+pool = pool.Pool(1000)
+rslt = []
+
+def test_domain(do):
+    do = do.strip()
+    try:
+        for sch in ['http', 'https']:
+            with Timeout(60, Exception) as timeout:
+                r = urllib.urlopen('%s://%s' % (sch, do), proxies={})
+            if r.getcode() == 200:
+                if '-f' not in optdict: print '%s passed with %s' % (do, sch)
+                rslt.append(do)
+                return True
+    except Exception: pass
+    return False
+
+def main():
+    global optdict
+    optlist, args = getopt.getopt(sys.argv[1:], 'f')
+    optdict = dict(optlist)
+    for filepath in args:
+        with open(filepath, 'r') as fi: pool.map(test_domain, fi)
+    pool.join()
+    if '-f' in optdict:
+        for filepath in args:
+            with open(filepath, 'r') as fi:
+                r = [line for line in fi if line.strip() not in rslt]
+            with open(filepath, 'w') as fo:
+                for line in r: fo.write(line)
+
+if __name__ == "__main__": main()
