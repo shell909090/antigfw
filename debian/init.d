@@ -178,7 +178,9 @@ def proccmd():
     runfile = RunFile(None)
 
     def start():
-        cfgs = config['servers']
+        if not config.get('daemon', False):
+            print 'not start due to config.daemon not set'
+            return
         try: runfile.chk_state(False)
         except RunfileExistError:
             print 'antigfw already started.'
@@ -189,7 +191,7 @@ def proccmd():
         runfile.acquire()
         try:
             try:
-                runners = [ssh_runner(cfg) for cfg in cfgs]
+                runners = [ssh_runner(cfg) for cfg in config['servers']]
                 if config.get('uniproxy', True): runners.append(uniproxy_runner)
                 watcher(*runners)
             except: logger.exception('unknown')

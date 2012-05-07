@@ -7,16 +7,18 @@
 ## HOWTO ##
 
 1. 安装python-gevent和openssh-client包，并且有一个以上可以用于翻墙的ssh帐号。
-2. 在翻墙帐号上设定密钥而非密码(将你的公钥导出到~/.ssh/authorized_keys文件，具体参照这里*TODO*)。
+2. 在翻墙帐号上设定密钥而非密码(将你的公钥导出到~/.ssh/authorized_keys文件，具体参照[Linux](http://blog.yening.cn/2006/10/30/187.html)和[Windows](http://butian.org/knowledge/linux/1632.html))。
 3. 设定/etc/default/antigfw文件，修改其中的servers记录。
-4. 用/etc/init.d/antigfw restart重启服务。
-5. 在浏览器上设定服务器的8118端口为代理，类型为http代理，如：192.168.1.8:8118(其中192.168.1.8为你启动antigfw服务的机器IP)。
-6. 如果有iptables防火墙，开放8118端口。
+4. 完成修改后，将上述配置中的daemon由False改为True。
+5. 用/etc/init.d/antigfw restart重启服务。
+6. 在浏览器上设定服务器的8118端口为代理，类型为http代理，如：192.168.1.8:8118(其中192.168.1.8为你启动antigfw服务的机器IP)。
+7. 如果有iptables防火墙，又需要对外服务，开放8118端口。(参考：-A INPUT -p tcp -m tcp --dport 8118 -j ACCEPT)
 
 ## 管理 ##
 如果某个域名需要被添加到翻墙列表中，修改/etc/uniproxy/gfw，一行一条记录，然后访问[http://192.168.1.8:8118/load](http://192.168.1.8:8118/load)。系统会重新读取gfw文件。另外，欢迎将你的gfw文件的补丁发送给我。
 如果你想要看ssh代理的使用状况，当前有多少页面正在处理，可以访问[http://192.168.1.8:8118/stat](http://192.168.1.8:8118/stat)。
-如果你
+如果你想要关闭uniproxy，可以访问[http://192.168.1.8:8118/stat](http://192.168.1.8:8118/stat)。如果是由antigfw监控uniproxy启动的，uniproxy会自动重启。
+如果不想打包重装，又想获得最新的gfw列表，可以执行gfw_tester -d。将标准输出定位到/etc/uniproxy/gfw。*注意：这会覆盖你原本的gfw列表配置。*
 
 # antigfw #
 
@@ -26,6 +28,7 @@
 ## 配置 ##
 
 * logfile: 记录到哪个日志文件。
+* daemon: 是否启动服务程序，用于暂停服务，阻止软件包刚刚完成安装后服务立刻启动导致的配置错误
 * pidfile: pid文件。
 * servers: 一个列表，每个元素记录一个服务器的配置。
   * proxyport: 代理的本地工作端口，即"socksv5"端口。
@@ -73,6 +76,8 @@
 
 * -f: 直接在文件上进行过滤，所有可以访问的域名会被自动删除。
 * -d: 无视gfw参数，直接下载网络上的最新gfw列表，在stdout中输出。
+
+注意：这个测试程序只测试首页是否连通，因此有很多网站可能无法发现被墙，从而导致误删。例如google.com。
 
 # Issus #
 
