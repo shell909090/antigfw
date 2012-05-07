@@ -6,7 +6,7 @@
 '''
 from distutils.core import setup
 
-version = '1.0'
+version = '1.1'
 description = 'toolset for cross GFW'
 long_description = ' toolset for cross GFW, include such tools.\
   * auto start multi ssh tunnel\
@@ -15,4 +15,4 @@ long_description = ' toolset for cross GFW, include such tools.\
 setup(name='antigfw', version=version,
       description=description, long_description=long_description,
       author='Shell.E.Xu', author_email='shell909090@gmail.com',
-      packages=['uniproxy',])
+      scripts=['gfw_tester',], packages=['uniproxy',])

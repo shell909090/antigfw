@@ -66,6 +66,13 @@
 * socks: 当socks=None，并且servers有配置的时候，会自动为每个server产生一条socks记录。
 * max\_conn: 用于自动配置socks中的max\_conn默认值。
 
+## gfw_tester ##
+用于自动测试gfw文件中的域名是否被墙。
+
+	gfw_tester [-f] gfw
+
+* -f: 直接在文件上进行过滤，所有可以访问的域名会被自动删除。
+
 # Issus #
 
 ## bug report ##
@@ -74,7 +81,3 @@
 ## lintian ##
 > W: antigfw source: diff-contains-git-control-dir .git
 > W: antigfw: init.d-script-uses-usr-interpreter etc/init.d/antigfw /usr/bin/python
-
-## TODO ##
-
-* gfw_tester: gfw文件检测工具，用于测试有多少域名可以直接访问。
