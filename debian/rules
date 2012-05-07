@@ -2,4 +2,4 @@
 # -*- makefile -*-
 
 %:
-	dh $@
+	dh --with python2 $@

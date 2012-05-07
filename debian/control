@@ -2,14 +2,14 @@ Source: antigfw
 Section: net
 Priority: extra
 Maintainer: Shell Xu <shell909090@gmail.com>
-Build-Depends: debhelper (>= 8), python-all-dev
+Build-Depends: debhelper (>= 8), python
 Standards-Version: 3.9.3
 X-Python-Version: >= 2.5
 Homepage: https://github.com/shell909090/antigfw
 
 Package: antigfw
 Architecture: all
-Depends: ${shlibs:Depends}, ${misc:Depends}, python, python-support (>= 0.90)
+Depends: ${shlibs:Depends}, ${misc:Depends}, python
 Recommends: openssh-client, python-gevent
 Description: toolset for cross GFW
  toolset for cross GFW, include such tools.
