@@ -69,9 +69,10 @@
 ## gfw_tester ##
 用于自动测试gfw文件中的域名是否被墙。
 
-	gfw_tester [-f] gfw
+	gfw_tester [-f] gfw [-d]
 
 * -f: 直接在文件上进行过滤，所有可以访问的域名会被自动删除。
+* -d: 无视gfw参数，直接下载网络上的最新gfw列表，在stdout中输出。
 
 # Issus #
 

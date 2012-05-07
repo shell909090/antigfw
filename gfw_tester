@@ -11,31 +11,42 @@ monkey.patch_all()
 pool = pool.Pool(1000)
 rslt = []
 
+def download_gfwlist():
+    url = 'https://github.com/shell909090/antigfw/raw/master/uniproxy/gfw'
+    sys.stdout.write(urllib.urlopen(url).read())
+
 def test_domain(do):
     do = do.strip()
     try:
         for sch in ['http', 'https']:
             with Timeout(60, Exception) as timeout:
-                r = urllib.urlopen('%s://%s' % (sch, do), proxies={})
-            if r.getcode() == 200:
-                if '-f' not in optdict: print '%s passed with %s' % (do, sch)
-                rslt.append(do)
-                return True
+                if urllib.urlopen('%s://%s' % (sch, do),
+                                  proxies={}).getcode() == 200:
+                    if '-f' not in optdict:
+                        print '%s passed with %s' % (do, sch)
+                    rslt.append(do)
+                    return True
     except Exception: pass
     return False
 
-def main():
-    global optdict
-    optlist, args = getopt.getopt(sys.argv[1:], 'f')
-    optdict = dict(optlist)
+def filter_file(filepath):
+    with open(filepath, 'r') as fi:
+        r = [line for line in fi if line.strip() not in rslt]
+    with open(filepath, 'w') as fo:
+        for line in r: fo.write(line)
+
+def gfw_tester(args):
     for filepath in args:
         with open(filepath, 'r') as fi: pool.map(test_domain, fi)
     pool.join()
     if '-f' in optdict:
-        for filepath in args:
-            with open(filepath, 'r') as fi:
-                r = [line for line in fi if line.strip() not in rslt]
-            with open(filepath, 'w') as fo:
-                for line in r: fo.write(line)
+        for filepath in args: filter_file(filepath)
+
+def main():
+    global optdict
+    optlist, args = getopt.getopt(sys.argv[1:], 'fd')
+    optdict = dict(optlist)
+    if '-d' in optdict: download_gfwlist()
+    else: gfw_tester(args)
 
 if __name__ == "__main__": main()
