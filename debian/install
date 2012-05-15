@@ -1,1 +1,2 @@
-uniproxy/gfw /etc/uniproxy/
+debian/gfw /etc/uniproxy/
+uniproxy/gfw /usr/share/uniproxy/

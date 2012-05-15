@@ -10,6 +10,6 @@ uniproxy = True
 
 max_conn  = 30
 socks     = None
-filter    = ['/etc/uniproxy/gfw',]
+filter    = ['/etc/uniproxy/gfw', '/usr/share/uniproxy/gfw']
 localip   = ''
 localport = 8118

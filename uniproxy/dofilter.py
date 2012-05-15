@@ -60,7 +60,9 @@ class DomainFilter(object):
                 for i in self.show(v, s + 1): yield i
 
     def load(self, stream):
-            for line in stream: self.add(line.strip().lower())
+            for line in stream:
+                if line.startswith('#'): continue
+                self.add(line.strip().lower())
 
     def loadfile(self, filepath):
         try:
