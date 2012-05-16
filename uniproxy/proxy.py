@@ -9,7 +9,7 @@ from urlparse import urlparse
 from gevent import select
 from http import *
 
-__all__ = ['recv_headers', 'connect', 'http']
+__all__ = ['connect', 'http']
 
 logger = logging.getLogger('proxy')
 VERBOSE = False
@@ -52,7 +52,7 @@ def http(req, stream, sock_factory):
         req.recv_body(stream, stream1.write, raw=True)
         stream1.flush()
 
-        res = recv_headers(stream1, HttpResponse)
+        res = recv_msg(stream1, HttpResponse)
         if VERBOSE: res.dbg_print()
         res.sendto(stream)
         hasbody = req.method.upper() != 'HEAD' and res.code not in CODE_NOBODY

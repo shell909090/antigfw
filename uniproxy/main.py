@@ -41,20 +41,18 @@ def with_sock(addr, port):
     try: yield sock
     finally: sock.close()
 
-def make_worklist():
-    worklist = []
-    @contextmanager
-    def with_worklist(desc):
-        worklist.append(desc)
-        try: yield
-        finally: worklist.remove(desc)
-    return with_worklist, worklist
-
 def proxy_server():
     sockcfg = []
     config = {}
     filter = dofilter.DomainFilter()
-    with_worklist, worklist = make_worklist()
+    worklist = []
+
+    @contextmanager
+    def with_worklist(desc):
+        logger.info(desc)
+        worklist.append(desc)
+        try: yield
+        finally: worklist.remove(desc)
 
     def init(*cfgs):
         if cfgs: config.update(import_config(*cfgs))
@@ -113,17 +111,15 @@ def proxy_server():
                 return srv_urls.get(u.path, mgr_default)(req, stream)
             hostname, func = u.netloc, proxy.http
         usesocks = hostname.split(':', 1)[0] in filter
-        logger.info('%s %s %s' % (
-                req.method, req.uri.split('?', 1)[0],
-                'socks' if usesocks else 'direct'))
-        with with_worklist('%s %s' % (req.method, req.uri.split('?', 1)[0])):
+        with with_worklist('%s %s %s' % (req.method, req.uri.split('?', 1)[0],
+                                         'socks' if usesocks else 'direct')):
             return func(req, stream,
                         get_socks_factory() if usesocks else with_sock)
 
     def handler(sock, addr):
         stream = sock.makefile()
         try:
-            while do_req(recv_headers(stream), stream): pass
+            while do_req(recv_msg(stream, HttpRequest), stream): pass
         except (EOFError, socket.error): pass
         except Exception, err: logger.exception('unknown')
         sock.close()

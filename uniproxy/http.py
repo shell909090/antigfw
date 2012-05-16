@@ -154,7 +154,7 @@ def send_headers(stream, headers):
         stream.write("%s: %s\r\n" % (k, l))
     stream.write('\r\n')
 
-def recv_headers(stream, cls=HttpRequest):
+def recv_msg(stream, cls):
     line = stream.readline().strip()
     if len(line) == 0: raise EOFError()
     r = line.split(' ', 2)
