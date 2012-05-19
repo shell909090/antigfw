@@ -4,7 +4,7 @@
 @date: 2012-04-26
 @author: shell.xu
 '''
-import cgi, sys, logging, gevent, StringIO
+import sys, logging, gevent, StringIO
 import socks, proxy, dofilter
 from http import *
 from os import path
