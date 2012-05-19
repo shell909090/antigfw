@@ -164,11 +164,13 @@ def recv_msg(stream, cls):
     msg.recv_header(stream)
     return msg
 
-def response_http(req, stream, code, phrase=None, body=None):
-    req.recv_body(stream)
+def response_http(stream, code, phrase=None, version=None, headers=None, body=None):
     if not phrase: phrase = DEFAULT_PAGES[code][0]
-    res = HttpResponse(req.version, code, phrase)
+    if not version: version = 'HTTP/1.1'
+    res = HttpResponse(version, code, phrase)
     if body: res.set_header('content-length', str(len(body)))
+    if headers:
+        for k, v in headers: res.set_header(k, v)
     res.sendto(stream)
     if body: stream.write(body)
     stream.flush()

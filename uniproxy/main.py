@@ -4,7 +4,7 @@
 @date: 2012-04-26
 @author: shell.xu
 '''
-import sys, logging, gevent
+import cgi, sys, logging, gevent, StringIO
 import socks, proxy, dofilter
 from http import *
 from os import path
@@ -41,7 +41,7 @@ def with_sock(addr, port):
     try: yield sock
     finally: sock.close()
 
-def proxy_server():
+def proxy_server(cfgs):
     sockcfg = []
     config = {}
     filter = dofilter.DomainFilter()
@@ -54,8 +54,8 @@ def proxy_server():
         try: yield
         finally: worklist.remove(desc)
 
-    def init(*cfgs):
-        if cfgs: config.update(import_config(*cfgs))
+    def init():
+        config.update(import_config(*cfgs))
         initlog(getattr(logging, config.get('loglevel', 'WARNING')),
                 config.get('logfile', None))
 
@@ -70,20 +70,14 @@ def proxy_server():
 
         filter.empty()
         for filepath in config['filter']: filter.loadfile(filepath)
-        filter.loadfile('gfw')
         return config.get('localip', ''), config.get('localport', 8118)
 
     def get_socks_factory():
         return min(sockcfg, key=lambda x: x.size()).with_socks
 
     def mgr_default(req, stream):
-        response_http(req, stream, 404, body='Page not found')
-
-    def mgr_reload(req, stream):
-        init()
-        response_http(req, stream, 200, body='done')
-
-    def mgr_quit(req, stream): sys.exit(-1)
+        req.recv_body(stream)
+        response_http(stream, 404, body='Page not found')
 
     def mgr_socks_stat(req, stream):
         namemap = {}
@@ -96,10 +90,38 @@ def proxy_server():
             return '%s	%s' % (namemap.get(n, n), r)
         body = ['socks stat',] + [fmt_rcd(s) for s in sockcfg] + \
             ['', 'avtive conntions',] + worklist
-        response_http(req, stream, 200, body='\r\n'.join(body))
+        req.recv_body(stream)
+        response_http(stream, 200, body='\r\n'.join(body))
 
-    srv_urls = {'/reload': mgr_reload, '/quit': mgr_quit,
-                '/stat': mgr_socks_stat}
+    def mgr_reload(req, stream):
+        init()
+        req.recv_body(stream)
+        response_http(stream, 302, headers=[('location', '/')])
+
+    def mgr_quit(req, stream): sys.exit(-1)
+
+    domain_template='''<html><body><form action="/add" method="POST"><input name="domain"/><input type="submit" name="submit"/></form><pre>%s</pre></body></html>'''
+    def mgr_domain_list(req, stream):
+        strs = StringIO.StringIO()
+        filter.save(strs)
+        req.recv_body(stream)
+        response_http(stream, 200, body=domain_template % strs.getvalue())
+
+    def mgr_domain_update(req, stream):
+        strs = StringIO.StringIO()
+        req.recv_body(stream, strs.write)
+        form = dict([i.split('=', 1) for i in strs.getvalue().split('&')])
+        if form.get('domain', '') and form['domain'] not in filter:
+            try:
+                with open(config['filter'][0], 'a') as fo:
+                    fo.write(form['domain'] + '\n')
+            except: pass
+            filter.add(form['domain'])
+        response_http(stream, 302, headers=[('location', '/domain')])
+
+    srv_urls = {'/': mgr_socks_stat, '/reload': mgr_reload,
+                '/quit': mgr_quit, '/domain': mgr_domain_list,
+                '/add': mgr_domain_update, '/save': mgr_doamin_save}
 
     def do_req(req, stream):
         u = urlparse(req.uri)
@@ -129,9 +151,10 @@ def proxy_server():
     return init, handler, final
 
 def main(*cfgs):
-    init, handler, final = proxy_server()
+    if not cfgs: return
+    init, handler, final = proxy_server(cfgs)
     try:
-        try: server.StreamServer(init(*cfgs), handler).serve_forever()
+        try: server.StreamServer(init(), handler).serve_forever()
         except KeyboardInterrupt: pass
     finally: final()
 
