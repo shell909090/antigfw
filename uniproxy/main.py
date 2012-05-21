@@ -107,7 +107,7 @@ def proxy_server(cfgs):
         req.recv_body(stream)
         response_http(stream, 200, body=domain_template % strs.getvalue())
 
-    def mgr_domain_update(req, stream):
+    def mgr_domain_add(req, stream):
         strs = StringIO.StringIO()
         req.recv_body(stream, strs.write)
         form = dict([i.split('=', 1) for i in strs.getvalue().split('&')])
@@ -119,9 +119,8 @@ def proxy_server(cfgs):
             filter.add(form['domain'])
         response_http(stream, 302, headers=[('location', '/domain')])
 
-    srv_urls = {'/': mgr_socks_stat, '/reload': mgr_reload,
-                '/quit': mgr_quit, '/domain': mgr_domain_list,
-                '/add': mgr_domain_update, '/save': mgr_doamin_save}
+    srv_urls = {'/': mgr_socks_stat, '/reload': mgr_reload, '/quit': mgr_quit,
+                '/domain': mgr_domain_list, '/add': mgr_domain_add}
 
     def do_req(req, stream):
         u = urlparse(req.uri)
