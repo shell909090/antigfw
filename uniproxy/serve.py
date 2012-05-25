@@ -4,13 +4,15 @@
 @date: 2012-04-26
 @author: shell.xu
 '''
-import sys, logging, gevent, StringIO
+import logging
 import socks, proxy, dofilter
 from http import *
 from os import path
 from urlparse import urlparse
 from contextlib import contextmanager
-from gevent import socket, server
+from gevent import socket
+
+__all__ = ['ProxyServer',]
 
 def import_config(*cfgs):
     d = {}
@@ -88,6 +90,7 @@ class ProxyServer(object):
         self.config.update(import_config(*self.cfgs))
         initlog(getattr(logging, self.config.get('loglevel', 'WARNING')),
                 self.config.get('logfile', None))
+        logger.info('init ProxyServer')
 
         self.load_socks()
         self.load_filters()
@@ -103,7 +106,6 @@ class ProxyServer(object):
         else:
             if not u.netloc:
                 logger.info('manager %s' % (u.path,))
-                print self.srv_urls, ProxyServer.srv_urls
                 return self.srv_urls.get(u.path, mgr_default)(self, req, stream)
             hostname, func = u.netloc, proxy.http
         usesocks = hostname.split(':', 1)[0] in self.filter
@@ -112,7 +114,7 @@ class ProxyServer(object):
         with self.with_worklist(reqid):
             logger.info(reqid)
             return func(req, stream,
-                        get_socks_factory() if usesocks else with_sock)
+                        self.get_socks_factory() if usesocks else with_sock)
 
     def handler(self, sock, addr):
         stream = sock.makefile()
@@ -123,14 +125,3 @@ class ProxyServer(object):
         sock.close()
 
     def final(self): logger.info('system exit')
-
-def main(*cfgs):
-    if not cfgs: return
-    import mgr
-    ps = ProxyServer(*cfgs)
-    try:
-        try: server.StreamServer(ps.init(), ps.handler).serve_forever()
-        except KeyboardInterrupt: pass
-    finally: ps.final()
-
-if __name__ == '__main__': main(*sys.argv[1:])
