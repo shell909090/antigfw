@@ -31,7 +31,8 @@
 * daemon: 是否启动服务程序，用于暂停服务，阻止软件包刚刚完成安装后服务立刻启动导致的配置错误
 * pidfile: pid文件。
 * servers: 一个列表，每个元素记录一个服务器的配置。
-  * proxyport: 代理的本地工作端口，即"socksv5"端口。
+  * sockport: 代理的本地工作端口，即"socksv5"端口。整型。
+  * listenport: 转发模式的代理端口，一般是http端口。整型，格式为(本地端口,远程端口)。注意远程ip是localhost。
   * username: 登录ssh服务器的用户名。
   * sshhost: 代理服务器主机名。
   * sshport: 代理服务器端口名。
@@ -61,7 +62,7 @@
 * loglevel: 记录级别，默认WARNING。
 * localip: 绑定到哪个IP，默认0.0.0.0。
 * localport: 绑定到哪个端口，默认8118。
-* socks: 一个列表，每个元素为(addr, port, max_conn)，指名一个socksv5代理的地址，端口，最大连接。
+* socks: 一个列表，每个元素为(type, addr, port, max_conn)，指名一个socksv5代理的类型地址，端口，最大连接。类型目前可以是socks5，预定加入http。
 * filter: 一个列表，每个元素都是字符串，表示滤表文件名。默认gfw。
 
 ## 自动配置 ##

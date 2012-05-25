@@ -158,7 +158,10 @@ def ssh_runner(cfg):
         args = ['ssh', '-CNq', '-o', 'ServerAliveInterval=30', 
                 '%s@%s' % (cfg['username'], cfg['sshhost']),]
         if 'sshport' in cfg: args.extend(('-p', cfg['sshport'],))
-        if 'proxyport' in cfg: args.extend(('-D', cfg['proxyport'],))
+        if 'sockport' in cfg: args.extend(('-D', str(cfg['sockport']),))
+        if 'listenport' in cfg:
+            lopt = '%d:localhost:%d' % (cfg['listenport'][0], cfg['listenport'][1])
+            args.extend(('-L', lopt,))
         if 'sshprivfile' in cfg: args.extend(('-i', cfg['sshprivfile'],))
         pid = os.spawnv(os.P_NOWAIT, '/usr/bin/ssh', args)
         logger.info('ssh starting pid %d with cmdline "%s"' % (
@@ -191,7 +194,9 @@ def proccmd():
         runfile.acquire()
         try:
             try:
-                runners = [ssh_runner(cfg) for cfg in config['servers']]
+                runners = []
+                if config.get('autossh', None):
+                    runners.extend([ssh_runner(cfg) for cfg in config['servers']])
                 if config.get('uniproxy', True): runners.append(uniproxy_runner)
                 watcher(*runners)
             except: logger.exception('unknown')

@@ -48,7 +48,7 @@ def mgr_default(self, req, stream):
     response_http(stream, 404, body='Page not found')
 
 class ProxyServer(object):
-    proxytypemap = {'http': socks.SocksManager}
+    proxytypemap = {'socks5': socks.SocksManager}
     srv_urls = {}
 
     def __init__(self, *cfgs):
@@ -75,8 +75,12 @@ class ProxyServer(object):
         socks_srv = self.config.get('socks', None)
         max_conn = self.config.get('max_conn', None)
         if not socks_srv and max_conn:
-            socks_srv = [('http', '127.0.0.1', int(srv['proxyport']), max_conn)
-                         for srv in self.config['servers']]
+            def ssh_info(srv):
+                if 'sockport' in srv:
+                    return 'socks5', '127.0.0.1', srv['sockport'], max_conn
+                elif 'listenport' in srv:
+                    return 'http', '127.0.0.1', srv['listenport'][0], max_conn
+            socks_srv = [ssh_info(srv) for srv in self.config['servers']]
         del self.sockcfg[:]
         for proxytype, host, port, max_conn in socks_srv:
             self.sockcfg.append(self.proxytypemap[proxytype](
