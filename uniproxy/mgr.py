@@ -12,18 +12,13 @@ logger = logging.getLogger('manager')
 
 @serve.ProxyServer.register('/')
 def mgr_socks_stat(ps, req, stream):
-    namemap = {}
-    if not ps.config.get('socks', None):
-        namemap = dict(('127.0.0.1:%s' % srv['proxyport'],
-                        '%s@%s' % (srv['username'], srv['sshhost']))
-                       for srv in ps.config['servers'])
-    def fmt_rcd(s):
-        n, r = s.stat()
-        return '%s	%s' % (namemap.get(n, n), r)
-    body = ['socks stat',] + [fmt_rcd(s) for s in ps.sockcfg] + \
-        ['', 'avtive conntions',] + ps.worklist
+    body = '''<html><body><table><tr><td>socks</td><td>stat</td></tr>%s</table><p/>
+<table><tr><td>active connections</td></tr>%s</table></body></html>''' % (
+        ''.join(['''<tr><td>%s</td><td>%s</td></tr>''' % (s.name, s.stat())
+                 for s in ps.sockcfg]),
+        ''.join(['''<tr><td>%s</td></tr>''' % desc for desc in ps.worklist]))
     req.recv_body(stream)
-    response_http(stream, 200, body='\r\n'.join(body))
+    response_http(stream, 200, body=body)
 
 @serve.ProxyServer.register('/reload')
 def mgr_reload(ps, req, stream):

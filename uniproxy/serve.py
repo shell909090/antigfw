@@ -5,12 +5,13 @@
 @author: shell.xu
 '''
 import logging
+import socket as orsocket
 import socks, proxy, dofilter
 from http import *
 from os import path
 from urlparse import urlparse
 from contextlib import contextmanager
-from gevent import socket
+from gevent import socket, dns
 
 __all__ = ['ProxyServer',]
 
@@ -39,7 +40,10 @@ logger = logging.getLogger('server')
 @contextmanager
 def with_sock(addr, port):
     sock = socket.socket()
-    sock.connect((addr, port))
+    try: sock.connect((addr, port))
+    except dns.DNSError:
+        addr = orsocket.gethostbyname(addr)
+        sock.connect((addr, port))
     try: yield sock
     finally: sock.close()
 
@@ -71,20 +75,23 @@ class ProxyServer(object):
         try: yield
         finally: self.worklist.remove(desc)
 
+    def ssh_to_proxy(self, cfg):
+        if 'sockport' in cfg:
+            return {
+                'type': 'socks5', 'addr': '127.0.0.1', 'port': cfg['sockport'],
+                'max_conn': self.config.get('max_conn', None),
+                'name': 'socks5:%s@%s' % (cfg['username'], cfg['sshhost'])}
+        elif 'listenport' in cfg:
+            return {
+                'type': 'http', 'addr': '127.0.0.1', 'port': cfg['listenport'][0],
+                'max_conn': self.config.get('max_conn', None),
+                'name': 'http:%s@%s' % (cfg['username'], cfg['sshhost'])}
+
     def load_socks(self):
-        socks_srv = self.config.get('socks', None)
-        max_conn = self.config.get('max_conn', None)
-        if not socks_srv and max_conn:
-            def ssh_info(srv):
-                if 'sockport' in srv:
-                    return 'socks5', '127.0.0.1', srv['sockport'], max_conn
-                elif 'listenport' in srv:
-                    return 'http', '127.0.0.1', srv['listenport'][0], max_conn
-            socks_srv = [ssh_info(srv) for srv in self.config['servers']]
-        del self.sockcfg[:]
-        for proxytype, host, port, max_conn in socks_srv:
-            self.sockcfg.append(self.proxytypemap[proxytype](
-                    host, port, max_conn=max_conn))
+        proxies = self.config.get('proxies', None)
+        if not proxies and self.config.get('max_conn', None):
+            proxies = [self.ssh_to_proxy(cfg) for cfg in self.config['sshs']]
+        self.sockcfg = [self.proxytypemap[proxy['type']](**proxy) for proxy in proxies]
 
     def load_filters(self):
         self.filter.empty()
@@ -124,7 +131,7 @@ class ProxyServer(object):
         stream = sock.makefile()
         try:
             while self.do_req(recv_msg(stream, HttpRequest), stream): pass
-        except (EOFError, socket.error): pass
+        except (EOFError, socket.error): logger.info('network error')
         except Exception, err: logger.exception('unknown')
         sock.close()
 

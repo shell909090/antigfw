@@ -196,7 +196,7 @@ def proccmd():
             try:
                 runners = []
                 if config.get('autossh', None):
-                    runners.extend([ssh_runner(cfg) for cfg in config['servers']])
+                    runners.extend([ssh_runner(cfg) for cfg in config['sshs']])
                 if config.get('uniproxy', True): runners.append(uniproxy_runner)
                 watcher(*runners)
             except: logger.exception('unknown')

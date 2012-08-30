@@ -3,15 +3,15 @@ loglevel = 'WARNING'
 daemon   = False
 pidfile  = '/var/run/antigfw.pid'
 autossh  = True
-servers  = [
+sshs	 = [
     {'sockport': 7777, 'listenport': (8080, 8080),
      'username':'user', 'sshhost':'sshhost',
      'sshport':'22', 'sshprivfile':'~/.ssh/id_rsa'},
     ]
 
-uniproxy = True
+uniproxy  = True
 max_conn  = 30
-socks     = None
+proxies   = None
 filter    = ['/etc/uniproxy/gfw', '/usr/share/uniproxy/gfw']
 localip   = ''
 localport = 8118

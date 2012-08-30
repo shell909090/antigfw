@@ -91,16 +91,15 @@ def socks5_connect(target, proxy, username=None, password=None, rdns=True):
 class SocksManager(object):
 
     def __init__(self, addr, port, username=None, password=None,
-                 rdns=True, max_conn=10):
+                 rdns=True, max_conn=10, name=None, **params):
         self.s = ((addr, port), username, password, rdns)
-        self.smph = coros.Semaphore(max_conn)
-        self.max_conn = max_conn
+        self.smph, self.max_conn = coros.Semaphore(max_conn), max_conn
+        self.name = name or 'socks5:%s:%s' % (addr, port)
 
     def size(self):
         return self.max_conn - self.smph.counter
 
-    def stat(self):
-        return '%s:%d' % (self.s[0][0], self.s[0][1]), '%d/%d' % (self.size(), self.max_conn)
+    def stat(self): return '%d/%d' % (self.size(), self.max_conn)
 
     @contextmanager
     def with_socks(self, addr, port):
