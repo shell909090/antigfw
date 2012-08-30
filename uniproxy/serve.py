@@ -18,9 +18,11 @@ __all__ = ['ProxyServer',]
 def import_config(*cfgs):
     d = {}
     for cfg in reversed(cfgs):
+        if not path.exists(cfg): continue
         try:
             with open(path.expanduser(cfg)) as fi:
                 eval(compile(fi.read(), cfg, 'exec'), d)
+            logger.info('import config %s' % cfg)
         except (OSError, IOError): logger.error('import config')
     return dict([(k, v) for k, v in d.iteritems() if not k.startswith('_')])
 
