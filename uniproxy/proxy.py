@@ -36,7 +36,8 @@ def connect(req, stream, sock_factory):
                     try: d = os.read(rfd, BUFSIZE)
                     except OSError: d = ''
                     if not d: raise EOFError()
-                    os.write(fd2 if rfd == fd1 else fd1, d)
+                    try: os.write(fd2 if rfd == fd1 else fd1, d)
+                    except OSError: raise EOFError()
     finally: logger.info('%s closed' % req.uri)
 
 def http(req, stream, sock_factory):
