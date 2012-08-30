@@ -40,8 +40,10 @@ logger = logging.getLogger('server')
 @contextmanager
 def with_sock(addr, port):
     sock = socket.socket()
+    # 没办法，gevent的dns这时如果碰到多ip返回值，会直接报错
     try: sock.connect((addr, port))
     except dns.DNSError:
+        # 在这里再用普通方式获得一下ip就OK了，不过会略略拖慢一下响应速度
         addr = orsocket.gethostbyname(addr)
         sock.connect((addr, port))
     try: yield sock
