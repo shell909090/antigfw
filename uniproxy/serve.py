@@ -4,7 +4,7 @@
 @date: 2012-04-26
 @author: shell.xu
 '''
-import logging
+import base64, logging
 import socket as orsocket
 import socks, proxy, dofilter
 from http import *
@@ -121,6 +121,18 @@ class ProxyServer(object):
     def get_socks_factory(self):
         return min(self.sockcfg, key=lambda x: x.size()).with_socks
 
+    def proxy_auth(self, req, stream):
+        users = self.config.get('users')
+        if not users: return True
+        auth = req.get_header('proxy-authorization')
+        if auth:
+            req.headers = [(k, v) for k, v in req.headers if k != 'proxy-authorization']
+            username, password = base64.b64decode(auth[6:]).split(':')
+            if users.get(username, None) == password:
+                return True
+        logging.info('proxy authenticate failed')
+        return False
+
     def do_req(self, req, stream, addr):
         u = urlparse(req.uri)
         if req.method.upper() == 'CONNECT':
@@ -130,6 +142,8 @@ class ProxyServer(object):
                 logger.info('manager %s' % (u.path,))
                 return self.srv_urls.get(u.path, mgr_default)(self, req, stream)
             hostname, func = u.netloc, proxy.http
+        if not self.proxy_auth(req, stream):
+            response_http(stream, 407, headers=[('Proxy-Authenticate', 'Basic realm="users"')])
         usesocks = hostname.split(':', 1)[0] in self.filter
         reqinfo = (req, usesocks, addr)
         with self.with_worklist(reqinfo):

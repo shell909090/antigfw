@@ -15,3 +15,5 @@ proxies   = None
 filter    = ['/etc/uniproxy/gfw', '/usr/share/uniproxy/gfw']
 localip   = ''
 localport = 8118
+managers  = {'admin': 'uniproxy'}
+users	  = {}
