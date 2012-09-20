@@ -1,3 +1,9 @@
+antigfw (1.4) unstable; urgency=low
+
+  * authentication system for admin and proxy.
+
+ -- Shell Xu <shell909090@gmail.com>  Thu, 20 Sep 2012 17:16:20 +0800
+
 antigfw (1.3) unstable; urgency=low
 
   * new config system
