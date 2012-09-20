@@ -12,11 +12,16 @@ logger = logging.getLogger('manager')
 
 @serve.ProxyServer.register('/')
 def mgr_socks_stat(ps, req, stream):
-    body = '''<html><body><table><tr><td>socks</td><td>stat</td></tr>%s</table><p/>
-<table><tr><td>active connections</td></tr>%s</table></body></html>''' % (
+    body = '''<html><body>
+<table><tr><td>socks</td><td>stat</td></tr>%s</table><p/>
+active connections<table><tr><td>source</td><td>method</td><td>url</td>
+<td>type</td></tr>%s</table></body></html>''' % (
         ''.join(['''<tr><td>%s</td><td>%s</td></tr>''' % (s.name, s.stat())
                  for s in ps.sockcfg]),
-        ''.join(['''<tr><td>%s</td></tr>''' % desc for desc in ps.worklist]))
+        ''.join(('''<tr><td>%s:%d</td><td>%s</td><td>%s</td><td>%s</td></tr>''' % (
+                addr[0], addr[1], req.method, req.uri.split('?', 1)[0],
+                'socks' if usesocks else 'direct')
+                 for req, usesocks, addr in ps.worklist)))
     req.recv_body(stream)
     response_http(stream, 200, body=body)
 

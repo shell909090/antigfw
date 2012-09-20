@@ -74,10 +74,17 @@ class ProxyServer(object):
         return inner
 
     @contextmanager
-    def with_worklist(self, desc):
-        self.worklist.append(desc)
+    def with_worklist(self, reqinfo):
+        self.worklist.append(reqinfo)
         try: yield
-        finally: self.worklist.remove(desc)
+        finally: self.worklist.remove(reqinfo)
+
+    @staticmethod
+    def fmt_reqinfo(info):
+        req, usesocks, addr = info
+        return '%s:%d %s %s %s' % (
+            addr[0], addr[1], req.method, req.uri.split('?', 1)[0],
+            'socks' if usesocks else 'direct')
 
     def ssh_to_proxy(self, cfg):
         if 'sockport' in cfg:
@@ -114,7 +121,7 @@ class ProxyServer(object):
     def get_socks_factory(self):
         return min(self.sockcfg, key=lambda x: x.size()).with_socks
 
-    def do_req(self, req, stream):
+    def do_req(self, req, stream, addr):
         u = urlparse(req.uri)
         if req.method.upper() == 'CONNECT':
             hostname, func = u.path, proxy.connect
@@ -124,17 +131,16 @@ class ProxyServer(object):
                 return self.srv_urls.get(u.path, mgr_default)(self, req, stream)
             hostname, func = u.netloc, proxy.http
         usesocks = hostname.split(':', 1)[0] in self.filter
-        reqid = '%s %s %s' % (req.method, req.uri.split('?', 1)[0],
-                              'socks' if usesocks else 'direct')
-        with self.with_worklist(reqid):
-            logger.info(reqid)
+        reqinfo = (req, usesocks, addr)
+        with self.with_worklist(reqinfo):
+            logger.info(self.fmt_reqinfo(reqinfo))
             return func(req, stream,
                         self.get_socks_factory() if usesocks else with_sock)
 
     def handler(self, sock, addr):
         stream = sock.makefile()
         try:
-            while self.do_req(recv_msg(stream, HttpRequest), stream): pass
+            while self.do_req(recv_msg(stream, HttpRequest), stream, addr): pass
         except (EOFError, socket.error): logger.info('network error')
         except Exception, err: logger.exception('unknown')
         sock.close()
