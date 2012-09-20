@@ -13,6 +13,7 @@ logger = logging.getLogger('manager')
 def auth_manager(func):
     def realfunc(ps, req, stream):
         managers = ps.config['managers']
+        if not managers: return func(ps, req, stream)
         auth = req.get_header('authorization')
         if auth:
             username, password = base64.b64decode(auth[6:]).split(':')

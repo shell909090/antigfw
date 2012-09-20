@@ -72,6 +72,8 @@
   * password: 密码。
   * rdns: 是否使用dns解析域名。
 * filter: 一个列表，每个元素都是字符串，表示滤表文件名。默认gfw。
+* managers: 一个dict，用户名为key，密码为value。如果为None或者为空则不验证。
+* users: 一个dict，用户名为key，密码为value。如果为None或者为空则不验证。
 
 ## 自动配置 ##
 
