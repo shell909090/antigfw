@@ -133,6 +133,10 @@ class ProxyServer(object):
         logging.info('proxy authenticate failed')
         return False
 
+    def usesocks(self, hostname):
+        if hostname in self.filter: return True
+        return False
+
     def do_req(self, req, stream, addr):
         u = urlparse(req.uri)
         if req.method.upper() == 'CONNECT':
@@ -144,7 +148,7 @@ class ProxyServer(object):
             hostname, func = u.netloc, proxy.http
         if not self.proxy_auth(req, stream):
             response_http(stream, 407, headers=[('Proxy-Authenticate', 'Basic realm="users"')])
-        usesocks = hostname.split(':', 1)[0] in self.filter
+        usesocks = self.usesocks(hostname.split(':', 1)[0])
         reqinfo = (req, usesocks, addr)
         with self.with_worklist(reqinfo):
             logger.info(self.fmt_reqinfo(reqinfo))

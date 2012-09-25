@@ -8,7 +8,7 @@ import struct, logging
 from contextlib import contextmanager
 from gevent import socket, coros
 
-__all__ = ['socks5_connect', 'SocksManager',]
+__all__ = ['SocksManager',]
 logger = logging.getLogger('socks')
 
 PROXY_TYPE_SOCKS4 = 1
@@ -39,7 +39,7 @@ class Socks5AuthError(GeneralProxyError):
     def __init__(self, *params):
         super(Socks5AuthError, self).__init__(*params)
 
-def socks5_connect(target, proxy, username=None, password=None, rdns=True):
+def socks5(proxy, username=None, password=None):
     sock = socket.socket()
     sock.connect(proxy)
     stream = sock.makefile()
@@ -63,7 +63,10 @@ def socks5_connect(target, proxy, username=None, password=None, rdns=True):
         logger.debug('authenticated with password')
     elif chosenauth[1] == "\xFF": raise Socks5AuthError(2)
     else: raise GeneralProxyError(1)
+    return sock
 
+def socks5_connect(sock, target, rdns=True):
+    stream = sock.makefile()
     # connect request
     try: reqaddr = "\x01" + socket.inet_aton(target[0])
     except socket.error:
@@ -86,13 +89,14 @@ def socks5_connect(target, proxy, username=None, password=None, rdns=True):
     boundport = struct.unpack(">H", stream.read(2))[0]
     logger.debug('connected with %s:%s, bind in %s:%d' % (
             target[0], target[1], boundaddr, boundport))
-    return sock, (boundaddr, boundport)
+    return boundaddr, boundport
 
 class SocksManager(object):
 
     def __init__(self, addr, port, username=None, password=None,
                  rdns=True, max_conn=10, name=None, **params):
-        self.s = ((addr, port), username, password, rdns)
+        self.s = ((addr, port), username, password)
+        self.rdns = rdns
         self.smph, self.max_conn = coros.Semaphore(max_conn), max_conn
         self.name = name or 'socks5:%s:%s' % (addr, port)
 
@@ -108,10 +112,17 @@ class SocksManager(object):
                 self.s[0][0], self.s[0][1], self.size(), self.max_conn))
         sock = None
         try:
-            sock, bind = socks5_connect((addr, port), *self.s)
+            sock = socks5(*self.s)
+            bind = socks5_connect(sock, (addr, port), self.rdns)
             yield sock
         finally:
             if sock: sock.close()
             logger.info('%s:%d %d/%d, released.' % (
                     self.s[0][0], self.s[0][1], self.size(), self.max_conn))
             self.smph.release()
+
+    def gethostbyname(self, host):
+        self.smph.acquire()
+        try:
+            sock, bind = socks5_connect()
+        finally: self.smph.release()
