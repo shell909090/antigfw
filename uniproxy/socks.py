@@ -4,7 +4,7 @@
 @date: 2010-06-04
 @author: shell.xu
 '''
-import struct, logging
+import struct, logging, random
 from contextlib import contextmanager
 from gevent import socket, coros
 
@@ -94,11 +94,20 @@ def socks5_connect(sock, target, rdns=True):
 class SocksManager(object):
 
     def __init__(self, addr, port, username=None, password=None,
-                 rdns=True, max_conn=10, name=None, **params):
+                 rdns=True, max_conn=10, name=None, dnsserver=None,
+                 **params):
         self.s = ((addr, port), username, password)
         self.rdns = rdns
         self.smph, self.max_conn = coros.Semaphore(max_conn), max_conn
         self.name = name or 'socks5:%s:%s' % (addr, port)
+        self.dnssock, self.dnsserver = None, dnsserver
+        if dnsserver is not None: self.connect_dnsserver()
+
+    def connect_dnsserver(self):
+        if self.dnssock: self.dnssock.close()
+        else: self.smph.acquire()
+        self.dnssock = socks5(*self.s)
+        socks5_connect(self.dnssock, (self.dnsserver, 53), self.rdns)
 
     def size(self):
         return self.max_conn - self.smph.counter
@@ -121,8 +130,30 @@ class SocksManager(object):
                     self.s[0][0], self.s[0][1], self.size(), self.max_conn))
             self.smph.release()
 
-    def gethostbyname(self, host):
-        self.smph.acquire()
-        try:
-            sock, bind = socks5_connect()
-        finally: self.smph.release()
+    def gethostbyname(self, name, retry=3):
+        stream = self.dnssock.makefile()
+        m = DNS.Mpacker()
+        qtype = DNS.Type.A
+        tid = random.randint(0,65535)
+        m.addHeader(tid, 0, DNS.Opcode.QUERY, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+        m.addQuestion(name, qtype, DNS.Class.IN)
+
+        request = m.getbuf()
+        stream.write(DNS.pack16bit(len(request)) + request)
+        stream.flush()
+
+        s = stream.read(2)
+        if len(s) == 0:
+            self.connect_dnsserver()
+            if not retry: return None
+            else: return self.gethostbyname(name, retry=retry-1)
+        count = DNS.unpack16bit(s)
+        reply = stream.read(count)
+        if len(reply) == 0:
+            self.connect_dnsserver()
+            if not retry: return None
+            else: return self.gethostbyname(name, retry=retry-1)
+
+        u = DNS.Munpacker(reply)
+        r = DNS.DnsResult(u, {})
+        return random.choice([i['data'] for i in r.answers if i['typename'] == 'A'])

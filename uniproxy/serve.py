@@ -119,7 +119,7 @@ class ProxyServer(object):
         return self.config.get('localip', ''), self.config.get('localport', 8118)
 
     def get_socks_factory(self):
-        return min(self.sockcfg, key=lambda x: x.size()).with_socks
+        return min(self.sockcfg, key=lambda x: x.size())
 
     def proxy_auth(self, req, stream):
         users = self.config.get('users')
@@ -135,6 +135,8 @@ class ProxyServer(object):
 
     def usesocks(self, hostname):
         if hostname in self.filter: return True
+        logger.debug('hostname: %s, addr: %s' % (
+                hostname, self.get_socks_factory().gethostbyname(hostname)))
         return False
 
     def do_req(self, req, stream, addr):
@@ -152,8 +154,8 @@ class ProxyServer(object):
         reqinfo = (req, usesocks, addr)
         with self.with_worklist(reqinfo):
             logger.info(self.fmt_reqinfo(reqinfo))
-            return func(req, stream,
-                        self.get_socks_factory() if usesocks else with_sock)
+            sf = self.get_socks_factory().with_socks if usesocks else with_sock
+            return func(req, stream, sf)
 
     def handler(self, sock, addr):
         stream = sock.makefile()
