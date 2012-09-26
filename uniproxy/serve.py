@@ -60,11 +60,10 @@ class ProxyServer(object):
     srv_urls = {}
 
     def __init__(self, *cfgs):
-        self.cfgs = cfgs
-        self.sockcfg = []
-        self.config = {}
+        self.cfgs, self.config = cfgs, {}
+        self.sockcfg, self.worklist = [], []
         self.filter = dofilter.DomainFilter()
-        self.worklist = []
+        self.dns, self.whitenf, self.blacknf = None, None, None
 
     @classmethod
     def register(cls, url):
@@ -116,6 +115,13 @@ class ProxyServer(object):
 
         self.load_socks()
         self.load_filters()
+        self.dns = dns.DNSServer(self.get_socks_factory(),
+                                 dnsserver=self.config.get('dnsserver', None),
+                                 cachesize=self.config.get('dnscache', 1000))
+        if self.config.get('whitenets'):
+            self.whitenf = dns.NetFilter(filename=self.config['whitenets'])
+        if self.config.get('blacknets'):
+            self.blacknf = dns.NetFilter(filename=self.config['blacknets'])
         return self.config.get('localip', ''), self.config.get('localport', 8118)
 
     def get_socks_factory(self):
@@ -135,8 +141,11 @@ class ProxyServer(object):
 
     def usesocks(self, hostname):
         if hostname in self.filter: return True
-        logger.debug('hostname: %s, addr: %s' % (
-                hostname, self.get_socks_factory().gethostbyname(hostname)))
+        if self.whitenf or self.blacknf:
+            addr = self.dns.gethostbyname(hostname)
+            logger.debug('hostname: %s, addr: %s' % (hostname, addr))
+            if self.whitenf and addr in self.whitenf: return True
+            if self.blacknf and addr not in self.blacknf: return True
         return False
 
     def do_req(self, req, stream, addr):

@@ -4,7 +4,7 @@
 @date: 2010-06-04
 @author: shell.xu
 '''
-import struct, logging, random
+import struct, logging
 from contextlib import contextmanager
 from gevent import socket, coros
 
@@ -116,44 +116,24 @@ class SocksManager(object):
 
     @contextmanager
     def with_socks(self, addr, port):
+        sock = self.acquire(addr, port)
+        try: yield sock
+        finally: self.release(sock)
+
+    def acquire(self, addr, port):
         self.smph.acquire()
         logger.info('%s:%d %d/%d allocated.' % (
                 self.s[0][0], self.s[0][1], self.size(), self.max_conn))
-        sock = None
+        sock = socks5(*self.s)
         try:
-            sock = socks5(*self.s)
             bind = socks5_connect(sock, (addr, port), self.rdns)
-            yield sock
-        finally:
-            if sock: sock.close()
-            logger.info('%s:%d %d/%d, released.' % (
-                    self.s[0][0], self.s[0][1], self.size(), self.max_conn))
-            self.smph.release()
+        except:
+            sock.close()
+            raise
+        return sock
 
-    def gethostbyname(self, name, retry=3):
-        stream = self.dnssock.makefile()
-        m = DNS.Mpacker()
-        qtype = DNS.Type.A
-        tid = random.randint(0,65535)
-        m.addHeader(tid, 0, DNS.Opcode.QUERY, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
-        m.addQuestion(name, qtype, DNS.Class.IN)
-
-        request = m.getbuf()
-        stream.write(DNS.pack16bit(len(request)) + request)
-        stream.flush()
-
-        s = stream.read(2)
-        if len(s) == 0:
-            self.connect_dnsserver()
-            if not retry: return None
-            else: return self.gethostbyname(name, retry=retry-1)
-        count = DNS.unpack16bit(s)
-        reply = stream.read(count)
-        if len(reply) == 0:
-            self.connect_dnsserver()
-            if not retry: return None
-            else: return self.gethostbyname(name, retry=retry-1)
-
-        u = DNS.Munpacker(reply)
-        r = DNS.DnsResult(u, {})
-        return random.choice([i['data'] for i in r.answers if i['typename'] == 'A'])
+    def release(self, sock):
+        if sock: sock.close()
+        logger.info('%s:%d %d/%d, released.' % (
+                self.s[0][0], self.s[0][1], self.size(), self.max_conn))
+        self.smph.release()

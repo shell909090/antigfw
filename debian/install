@@ -1,2 +1,3 @@
 debian/gfw /etc/uniproxy/
-uniproxy/gfw /usr/share/uniproxy/
+uniproxy/gfw.gz /usr/share/uniproxy/
+uniproxy/routes.list.gz /usr/share/uniproxy/blacknets.list.gz

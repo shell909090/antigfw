@@ -74,6 +74,19 @@
 * filter: 一个列表，每个元素都是字符串，表示滤表文件名。默认gfw。
 * managers: 一个dict，用户名为key，密码为value。如果为None或者为空则不验证。
 * users: 一个dict，用户名为key，密码为value。如果为None或者为空则不验证。
+* dnsserver: 一个DNS服务器名，代理在需要DNS查询时会使用这个DNS作为默认DNS。
+* dnscache: DNS缓存大小，默认为1000。
+* whitenets: 翻墙白名单。当DNS解析后的结果在此IP范围内，会启用代理。None不启用。
+* blacknets: 翻墙黑名单。当启用后，DNS解析结果不在此IP范围内，会启用代理。None不启用。
+
+## NetFilter ##
+
+IP地址过滤系统，主要是whitenets和blacknets上使用。具体格式为，文本格式，回车分割，每行一个地址段。第一部分的内容是IP，第二部分是mask。允许以下两种格式。
+
+* ip mask: 例如39.64.0.0 255.224.0.0
+* ip/mask: 39.64.0.0/11
+
+对上述文本格式进行gzip压缩，即可以得到ip地址过滤文件。通常建议的配置方法是利用chnroutes项目生成中国地址池，然后转换为netfilter格式，再gzip压缩即可。
 
 ## 自动配置 ##
 

@@ -65,16 +65,24 @@ class DomainFilter(object):
                 self.add(line.strip().lower())
 
     def loadfile(self, filepath):
+        openfile = open
+        if filepath.endswith('.gz'):
+            import gzip
+            openfile = gzip.open
         try:
-            with open(filepath, 'r') as fi: self.load(fi)
+            with openfile(filepath, 'r') as fi: self.load(fi)
         except (OSError, IOError): return False
 
     def save(self, stream):
         for line in sorted(self.getlist()): stream.write(line+'\n')
 
     def savefile(self, filepath):
+        openfile = open
+        if filepath.endswith('.gz'):
+            import gzip
+            openfile = gzip.open
         try:
-            with open(filepath, 'w+') as fo: self.save(fo)
+            with openfile(filepath, 'w+') as fo: self.save(fo)
         except (OSError, IOError): return False
 
 def main():
