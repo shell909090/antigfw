@@ -4,9 +4,12 @@
 @date: 2012-09-26
 @author: shell.xu
 '''
-import os, sys, time, random
-from gevent import socket
+import os, sys, time, heapq, random, logging
+from contextlib import contextmanager
+from gevent import socket, coros
 import DNS
+
+logger = logging.getLogger('netfilter')
 
 def nslookup(sock, name):
     stream = sock.makefile()
@@ -28,7 +31,9 @@ def nslookup(sock, name):
 
     u = DNS.Munpacker(reply)
     r = DNS.DnsResult(u, {})
-    return [i['data'] for i in r.answers if i['typename'] == 'A']
+    rslt = [i['data'] for i in r.answers if i['typename'] == 'A']
+    logger.info('resolve %s to %s' % (name, str(rslt)))
+    return rslt
 
 class ObjHeap(object):
     ''' 使用lru算法的对象缓存容器，感谢Evan Prodromou <evan@bad.dynu.ca>。
@@ -68,6 +73,14 @@ class ObjHeap(object):
         heapq.heapify(self.__heap)
         return n.v
 
+    def get(self, k):
+        n = self.__dict.get(k)
+        if n is None: return None
+        self.f += 1
+        n.f = self.f
+        heapq.heapify(self.__heap)
+        return n.v
+
     def __delitem__(self, k):
         n = self.__dict[k]
         del self.__dict[k]
@@ -82,31 +95,37 @@ class ObjHeap(object):
 
 class DNSServer(object):
     DNSSERVER = '8.8.8.8'
-    TIMEOUT = 3600
-    RETRY = 3
+    DNSPORT   = 53
+    TIMEOUT   = 3600
+    RETRY     = 3
 
-    def __init__(self, sock_factory, dnsserver=None, cachesize=1000):
+    def __init__(self, sock_factory, dnsserver=None, cachesize=1000, max_conn=10):
         self.dnsserver = dnsserver or self.DNSSERVER
-        self.cache = ObjHeap(cachesize)
-        self.sock, self.sock_factory = None, sock_factory
-        self.reconnect()
+        self.cache, self.cachesize = ObjHeap(cachesize), cachesize
+        self.sock_factory = sock_factory
+        self.smph, self.max_conn = coros.Semaphore(max_conn), max_conn
 
-    def reconnect(self):
-        if self.sock: self.sock_factory.release(self.sock)
-        self.sock = self.sock_factory.acquire()
+    def size(self): return self.max_conn - self.smph.counter
+    def stat(self): return '%d/%d' % (self.size(), self.max_conn)
 
     def gethostbyname(self, name):
         if name in self.cache:
             if time.time() - self.cache[name][0] <= self.TIMEOUT:
                 return random.choice(self.cache[name][1])
             else: del self.cache[name]
+
         for i in xrange(self.RETRY):
             try:
-                r = nslookup(self.sock, name)
-                self.cache[name] = (time.time(), r)
-                break
-            except EOFError: self.reconnect()
-        return random.choice(self.cache[name][1])
+                with self.sock_factory.with_socks(self.dnsserver, self.DNSPORT) as sock:
+                    with self.smph:
+                        r = nslookup(sock, name)
+                        self.cache[name] = (time.time(), r)
+                        break
+            except (EOFError, socket.error): pass
+
+        r = self.cache.get(name)
+        if r is None: return None
+        else: return random.choice(r[1])
 
 def get_netaddr(ip, mask):
     return ''.join(map(lambda x, y: chr(ord(x) & ord(y)), ip, mask))
@@ -132,8 +151,10 @@ class NetFilter(object):
         if filename.endswith('.gz'):
             import gzip
             openfile = gzip.open
-        with openfile(filename) as fi:
-            for line in fi: self.loadline(line.strip())
+        try:
+            with openfile(filename) as fi:
+                for line in fi: self.loadline(line.strip())
+        except (OSError, IOError): return False
             
     def __contains__(self, addr):
         try: addr = socket.inet_aton(addr)

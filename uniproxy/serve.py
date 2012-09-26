@@ -6,7 +6,7 @@
 '''
 import base64, logging
 import socket as orsocket
-import socks, proxy, dofilter
+import socks, proxy, dofilter, netfilter
 from http import *
 from os import path
 from urlparse import urlparse
@@ -39,18 +39,6 @@ def initlog(lv, logfile=None):
 
 logger = logging.getLogger('server')
 
-@contextmanager
-def with_sock(addr, port):
-    sock = socket.socket()
-    # 没办法，gevent的dns这时如果碰到多ip返回值，会直接报错
-    try: sock.connect((addr, port))
-    except dns.DNSError:
-        # 在这里再用普通方式获得一下ip就OK了，不过会略略拖慢一下响应速度
-        addr = orsocket.gethostbyname(addr)
-        sock.connect((addr, port))
-    try: yield sock
-    finally: sock.close()
-
 def mgr_default(self, req, stream):
     req.recv_body(stream)
     response_http(stream, 404, body='Page not found')
@@ -77,6 +65,19 @@ class ProxyServer(object):
         self.worklist.append(reqinfo)
         try: yield
         finally: self.worklist.remove(reqinfo)
+
+    @contextmanager
+    def with_sock(self, addr, port):
+        sock = socket.socket()
+        # 没办法，gevent的dns这时如果碰到多ip返回值，会直接报错
+        try: sock.connect((addr, port))
+        except dns.DNSError:
+            # 这下不会拖慢响应了，要死最多死这个上下文
+            addr = self.dns.gethostbyname(addr)
+            if addr is None: return
+            sock.connect((addr, port))
+        try: yield sock
+        finally: sock.close()
 
     @staticmethod
     def fmt_reqinfo(info):
@@ -107,6 +108,12 @@ class ProxyServer(object):
         self.filter.empty()
         for filepath in self.config['filter']: self.filter.loadfile(filepath)
 
+    def load_netfilter(self, name):
+        if not self.config.get(name): return None
+        nf = netfilter.NetFilter()
+        for filepath in self.config[name]: nf.loadfile(filepath)
+        return nf
+
     def init(self):
         self.config.update(import_config(*self.cfgs))
         initlog(getattr(logging, self.config.get('loglevel', 'WARNING')),
@@ -115,13 +122,11 @@ class ProxyServer(object):
 
         self.load_socks()
         self.load_filters()
-        self.dns = dns.DNSServer(self.get_socks_factory(),
-                                 dnsserver=self.config.get('dnsserver', None),
-                                 cachesize=self.config.get('dnscache', 1000))
-        if self.config.get('whitenets'):
-            self.whitenf = dns.NetFilter(filename=self.config['whitenets'])
-        if self.config.get('blacknets'):
-            self.blacknf = dns.NetFilter(filename=self.config['blacknets'])
+        self.dns = netfilter.DNSServer(self.get_socks_factory(),
+                                       dnsserver=self.config.get('dnsserver', None),
+                                       cachesize=self.config.get('dnscache', 1000))
+        self.whitenf = self.load_netfilter('whitenets')
+        self.blacknf = self.load_netfilter('blacknets')
         return self.config.get('localip', ''), self.config.get('localport', 8118)
 
     def get_socks_factory(self):
@@ -143,6 +148,7 @@ class ProxyServer(object):
         if hostname in self.filter: return True
         if self.whitenf or self.blacknf:
             addr = self.dns.gethostbyname(hostname)
+            if addr is None: return False
             logger.debug('hostname: %s, addr: %s' % (hostname, addr))
             if self.whitenf and addr in self.whitenf: return True
             if self.blacknf and addr not in self.blacknf: return True
@@ -163,14 +169,14 @@ class ProxyServer(object):
         reqinfo = (req, usesocks, addr)
         with self.with_worklist(reqinfo):
             logger.info(self.fmt_reqinfo(reqinfo))
-            sf = self.get_socks_factory().with_socks if usesocks else with_sock
+            sf = self.get_socks_factory().with_socks if usesocks else self.with_sock
             return func(req, stream, sf)
 
     def handler(self, sock, addr):
         stream = sock.makefile()
         try:
             while self.do_req(recv_msg(stream, HttpRequest), stream, addr): pass
-        except (EOFError, socket.error): logger.info('network error')
+        except (EOFError, socket.error): logger.debug('network error')
         except Exception, err: logger.exception('unknown')
         sock.close()
 

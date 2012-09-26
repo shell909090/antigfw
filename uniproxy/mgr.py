@@ -28,10 +28,12 @@ def auth_manager(func):
 def mgr_socks_stat(ps, req, stream):
     body = '''<html><body>
 <table><tr><td>socks</td><td>stat</td></tr>%s</table><p/>
+dns cache: %d/%d, dns connections: %s.<p/>
 active connections<table><tr><td>source</td><td>method</td><td>url</td>
 <td>type</td></tr>%s</table></body></html>''' % (
         ''.join(['''<tr><td>%s</td><td>%s</td></tr>''' % (s.name, s.stat())
                  for s in ps.sockcfg]),
+        len(ps.dns.cache), ps.dns.cachesize, ps.dns.stat(),
         ''.join(('''<tr><td>%s:%d</td><td>%s</td><td>%s</td><td>%s</td></tr>''' % (
                 addr[0], addr[1], req.method, req.uri.split('?', 1)[0],
                 'socks' if usesocks else 'direct')

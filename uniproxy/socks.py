@@ -87,8 +87,7 @@ def socks5_connect(sock, target, rdns=True):
     elif resp[3] == "\x01": boundaddr = socket.inet_ntoa(stream.read(4))
     else: raise GeneralProxyError(1)
     boundport = struct.unpack(">H", stream.read(2))[0]
-    logger.debug('connected with %s:%s, bind in %s:%d' % (
-            target[0], target[1], boundaddr, boundport))
+    logger.debug('socks connected with %s:%s' % target)
     return boundaddr, boundport
 
 class SocksManager(object):
@@ -116,24 +115,16 @@ class SocksManager(object):
 
     @contextmanager
     def with_socks(self, addr, port):
-        sock = self.acquire(addr, port)
-        try: yield sock
-        finally: self.release(sock)
-
-    def acquire(self, addr, port):
-        self.smph.acquire()
-        logger.info('%s:%d %d/%d allocated.' % (
-                self.s[0][0], self.s[0][1], self.size(), self.max_conn))
-        sock = socks5(*self.s)
-        try:
-            bind = socks5_connect(sock, (addr, port), self.rdns)
-        except:
-            sock.close()
-            raise
-        return sock
-
-    def release(self, sock):
-        if sock: sock.close()
-        logger.info('%s:%d %d/%d, released.' % (
-                self.s[0][0], self.s[0][1], self.size(), self.max_conn))
-        self.smph.release()
+        with self.smph:
+            logger.debug('%s:%d %d/%d allocated.' % (
+                    self.s[0][0], self.s[0][1], self.size(), self.max_conn))
+            sock = socks5(*self.s)
+            try: bind = socks5_connect(sock, (addr, port), self.rdns)
+            except:
+                sock.close()
+                raise
+            try: yield sock
+            finally:
+                if sock: sock.close()
+                logger.debug('%s:%d %d/%d, released.' % (
+                        self.s[0][0], self.s[0][1], self.size(), self.max_conn))
