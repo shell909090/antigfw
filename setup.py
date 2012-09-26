@@ -15,4 +15,6 @@ long_description = ' toolset for cross GFW, include such tools.\
 setup(name='antigfw', version=version,
       description=description, long_description=long_description,
       author='Shell.E.Xu', author_email='shell909090@gmail.com',
-      scripts=['gfw_tester',], packages=['uniproxy',])
+      scripts=['gfw_tester',], packages=['uniproxy',],
+      data_files=[('share/uniproxy', ['uniproxy/gfw.gz', 'uniproxy/routes.list.gz']),
+                  ('/etc/uniproxy', ['debian/gfw'])])
