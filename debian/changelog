@@ -1,3 +1,9 @@
+antigfw (1.5) unstable; urgency=low
+
+  * new dns resolve system.
+
+ -- Shell Xu <shell909090@gmail.com>  Wed, 26 Sep 2012 12:45:12 +0800
+
 antigfw (1.4) unstable; urgency=low
 
   * authentication system for admin and proxy.
