@@ -75,7 +75,7 @@
 * managers: 一个dict，用户名为key，密码为value。如果为None或者为空则不验证。
 * users: 一个dict，用户名为key，密码为value。如果为None或者为空则不验证。
 * dnsserver: 一个DNS服务器名，代理在需要DNS查询时会使用这个DNS作为默认DNS。
-* dnscache: DNS缓存大小，默认为1000。
+* dnscache: DNS缓存大小，默认为512。
 * whitenets: 翻墙白名单，一个列表，每个元素都是字符串，表示NetFilter文件名。
   当DNS解析后的结果在此IP范围内，会启用代理。None不启用。
 * blacknets: 翻墙黑名单，一个列表，每个元素都是字符串，表示NetFilter文件名。

@@ -10,7 +10,7 @@ sshs	 = [
     ]
 
 uniproxy  = True
-max_conn  = 30
+max_conn  = 36
 proxies   = None
 filter    = ['/etc/uniproxy/gfw', '/usr/share/uniproxy/gfw.gz']
 localip   = ''
@@ -18,6 +18,6 @@ localport = 8118
 managers  = {'admin': 'uniproxy'}
 users	  = {}
 dnsserver = '8.8.8.8'
-dnscache  = 1000
+dnscache  = 512
 whitenets = None
 blacknets = ['/etc/uniproxy/white.list', '/usr/share/uniproxy/routes.list.gz',]

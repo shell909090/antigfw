@@ -122,7 +122,7 @@ class ProxyServer(object):
 
         self.load_socks()
         self.load_filters()
-        self.dns = netfilter.DNSServer(self.get_socks_factory(),
+        self.dns = netfilter.DNSServer(self.get_socks_factory,
                                        dnsserver=self.config.get('dnsserver', None),
                                        cachesize=self.config.get('dnscache', 1000))
         self.whitenf = self.load_netfilter('whitenets')

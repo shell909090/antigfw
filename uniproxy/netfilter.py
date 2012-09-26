@@ -99,10 +99,10 @@ class DNSServer(object):
     TIMEOUT   = 3600
     RETRY     = 3
 
-    def __init__(self, sock_factory, dnsserver=None, cachesize=1000, max_conn=10):
+    def __init__(self, get_socks_factory, dnsserver=None, cachesize=512, max_conn=10):
         self.dnsserver = dnsserver or self.DNSSERVER
         self.cache, self.cachesize = ObjHeap(cachesize), cachesize
-        self.sock_factory = sock_factory
+        self.get_socks_factory = get_socks_factory
         self.smph, self.max_conn = coros.Semaphore(max_conn), max_conn
 
     def size(self): return self.max_conn - self.smph.counter
@@ -116,8 +116,9 @@ class DNSServer(object):
 
         for i in xrange(self.RETRY):
             try:
-                with self.sock_factory.with_socks(self.dnsserver, self.DNSPORT) as sock:
-                    with self.smph:
+                with self.smph:
+                    with self.get_socks_factory().with_socks(
+                        self.dnsserver, self.DNSPORT) as sock:
                         r = nslookup(sock, name)
                         self.cache[name] = (time.time(), r)
                         break
