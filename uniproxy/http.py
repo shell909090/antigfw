@@ -87,6 +87,13 @@ class HttpMessage(object):
 
     def has_header(self, k): return self.get_header(k) is not None
 
+    def send_header(self, stream):
+        stream.write(self.get_startline() + '\r\n')
+        for k, l in self.headers:
+            k = '-'.join([t.capitalize() for t in k.split('-')])
+            stream.write("%s: %s\r\n" % (k, l))
+        stream.write('\r\n')
+
     def recv_header(self, stream):
         while True:
             line = stream.readline()
@@ -140,19 +147,18 @@ class HttpResponse(HttpMessage):
     def __init__(self, version, code, phrase):
         HttpMessage.__init__(self)
         self.version, self.code, self.phrase = version, int(code), phrase
+        self.connection, self.cache = False, 0
+
+    def __nonzero__(self): return self.connection
 
     def get_startline(self):
         return ' '.join((self.version, str(self.code), self.phrase))
 
-    def sendto(self, stream):
-        stream.write(self.get_startline() + '\r\n')
-        send_headers(stream, self.headers)
-
-def send_headers(stream, headers):
-    for k, l in headers:
-        k = '-'.join([t.capitalize() for t in k.split('-')])
-        stream.write("%s: %s\r\n" % (k, l))
-    stream.write('\r\n')
+    def sendto(self, stream, *p, **kw):
+        self.send_header(stream)
+        if callable(self.body):
+            for d in self.body(*p, **kw): stream.write(d)
+        else: stream.write(self.body)
 
 def recv_msg(stream, cls):
     line = stream.readline().strip()
@@ -161,16 +167,19 @@ def recv_msg(stream, cls):
     if len(r) < 2: raise Exception('unknown format')
     if len(r) < 3: r.append(DEFAULT_PAGES[int(r[1])][0])
     msg = cls(*r)
+    msg.stream = stream
     msg.recv_header(stream)
     return msg
 
-def response_http(stream, code, phrase=None, version=None, headers=None, body=None):
+def response_http(code, phrase=None, version=None, headers=None,
+                  cache=0, body=None):
     if not phrase: phrase = DEFAULT_PAGES[code][0]
     if not version: version = 'HTTP/1.1'
     res = HttpResponse(version, code, phrase)
-    if body: res.set_header('content-length', str(len(body)))
+    if body and isinstance(body, basestring):
+        res.set_header('content-length', str(len(body)))
     if headers:
         for k, v in headers: res.set_header(k, v)
-    res.sendto(stream)
-    if body: stream.write(body)
-    stream.flush()
+    res.cache = cache
+    res.body = body
+    return res

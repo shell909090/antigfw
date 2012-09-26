@@ -21,15 +21,15 @@ def parse_target(uri):
     else: port = 443 if u.scheme.lower() == 'https' else 80
     return r[0], port, '%s?%s' % (u.path, u.query) if u.query else u.path
 
-def connect(req, stream, sock_factory):
+def connect(req, sock_factory):
     hostname, port, uri = parse_target(req.uri)
     try:
         with sock_factory(hostname, port) as sock:
             res = HttpResponse(req.version, 200, 'OK')
-            res.sendto(stream)
-            stream.flush()
+            res.sendto(req.stream)
+            req.stream.flush()
 
-            fd1, fd2 = stream.fileno(), sock.fileno()
+            fd1, fd2 = req.stream.fileno(), sock.fileno()
             rlist = [fd1, fd2]
             while True:
                 for rfd in select.select(rlist, [], [])[0]:
@@ -40,27 +40,27 @@ def connect(req, stream, sock_factory):
                     except OSError: raise EOFError()
     finally: logger.info('%s closed' % req.uri)
 
-def http(req, stream, sock_factory):
+def http(req, sock_factory):
     t = time.time()
     hostname, port, uri = parse_target(req.uri)
-    headers = [(h, v) for h, v in req.headers if not h.startswith('proxy')]
+    req.headers = [(h, v) for h, v in req.headers if not h.startswith('proxy')]
     with sock_factory(hostname, port) as sock:
         stream1 = sock.makefile()
 
         if VERBOSE: req.dbg_print()
         stream1.write(' '.join((req.method, uri, req.version)) + '\r\n')
-        send_headers(stream1, headers)
-        req.recv_body(stream, stream1.write, raw=True)
+        req.send_header(stream1)
+        req.recv_body(req.stream, stream1.write, raw=True)
         stream1.flush()
 
         res = recv_msg(stream1, HttpResponse)
         if VERBOSE: res.dbg_print()
-        res.sendto(stream)
+        res.send_header(req.stream)
         hasbody = req.method.upper() != 'HEAD' and res.code not in CODE_NOBODY
-        res.recv_body(stream1, stream.write, hasbody, raw=True)
-        stream.flush()
-    keep_alive = req.get_header('proxy-connection', '').lower() == 'keep-alive'
+        res.recv_body(stream1, req.stream.write, hasbody, raw=True)
+        req.stream.flush()
+    res.connection = req.get_header('proxy-connection', '').lower() == 'keep-alive'
     logger.debug('%s with %d in %0.2f, %s' % (
             req.uri.split('?', 1)[0], res.code, time.time() - t,
             req.get_header('proxy-connection', 'closed').lower()))
-    return keep_alive
+    return res

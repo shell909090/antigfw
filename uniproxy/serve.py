@@ -132,7 +132,7 @@ class ProxyServer(object):
     def get_socks_factory(self):
         return min(self.sockcfg, key=lambda x: x.size())
 
-    def proxy_auth(self, req, stream):
+    def proxy_auth(self, req):
         users = self.config.get('users')
         if not users: return True
         auth = req.get_header('proxy-authorization')
@@ -154,28 +154,33 @@ class ProxyServer(object):
             if self.blacknf and addr not in self.blacknf: return True
         return False
 
-    def do_req(self, req, stream, addr):
+    def do_req(self, req, addr):
         u = urlparse(req.uri)
         if req.method.upper() == 'CONNECT':
             hostname, func = u.path, proxy.connect
         else:
             if not u.netloc:
                 logger.info('manager %s' % (u.path,))
-                return self.srv_urls.get(u.path, mgr_default)(self, req, stream)
+                res = self.srv_urls.get(u.path, mgr_default)(self, req)
+                res.sendto(req.stream)
+                return res
             hostname, func = u.netloc, proxy.http
-        if not self.proxy_auth(req, stream):
-            response_http(stream, 407, headers=[('Proxy-Authenticate', 'Basic realm="users"')])
+        if not self.proxy_auth(req):
+            res = response_http(407, headers=[('Proxy-Authenticate',
+                                               'Basic realm="users"')])
+            res.sendto(req.stream)
+            return res
         usesocks = self.usesocks(hostname.split(':', 1)[0])
         reqinfo = (req, usesocks, addr)
         with self.with_worklist(reqinfo):
             logger.info(self.fmt_reqinfo(reqinfo))
             sf = self.get_socks_factory().with_socks if usesocks else self.with_sock
-            return func(req, stream, sf)
+            return func(req, sf)
 
     def handler(self, sock, addr):
         stream = sock.makefile()
         try:
-            while self.do_req(recv_msg(stream, HttpRequest), stream, addr): pass
+            while self.do_req(recv_msg(stream, HttpRequest), addr): pass
         except (EOFError, socket.error): logger.debug('network error')
         except Exception, err: logger.exception('unknown')
         sock.close()

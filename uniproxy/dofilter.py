@@ -7,7 +7,7 @@
 import sys, logging
 
 __all__ = ['DomainFilter']
-logger = logging.getLogger('filter')
+logger = logging.getLogger('dofilter')
 
 class DomainFilter(object):
 
