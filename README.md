@@ -1,7 +1,9 @@
 # 简述 #
 
 ## 目标 ##
+
 一体化的自动翻墙工具，为多人共享一到两个翻墙帐号，实现流畅的翻墙而作。
+
 系统分为两个部分，uniproxy和antigfw。antigfw是一套配置-启动-监管脚本，用于启动和管理ssh以及uniproxy。uniproxy负责实施代理分流，将需要代理和不需要代理的流量分离开。
 
 ## HOWTO ##
@@ -15,6 +17,7 @@
 7. 如果有iptables防火墙，又需要对外服务，开放8118端口。(参考：-A INPUT -p tcp -m tcp --dport 8118 -j ACCEPT)
 
 ## 管理 ##
+
 如果某个域名需要被添加到翻墙列表中，修改/etc/uniproxy/gfw，一行一条记录，然后访问[http://192.168.1.8:8118/load](http://192.168.1.8:8118/load)。系统会重新读取gfw文件。另外，欢迎将你的gfw文件的补丁发送给我。
 如果你想要看ssh代理的使用状况，当前有多少页面正在处理，可以访问[http://192.168.1.8:8118/stat](http://192.168.1.8:8118/stat)。
 如果你想要关闭uniproxy，可以访问[http://192.168.1.8:8118/stat](http://192.168.1.8:8118/stat)。如果是由antigfw监控uniproxy启动的，uniproxy会自动重启。
@@ -23,6 +26,7 @@
 # antigfw #
 
 ## 项目目的 ##
+
 启动uniproxy和ssh，互相连接，形成自动翻墙系统。
 
 ## 配置 ##
@@ -42,12 +46,15 @@
 # uniproxy #
 
 ## 项目目的 ##
+
 替换squid，做一个轻量级的代理系统，用于翻墙。
 
 ## 依赖 ##
+
 系统基于python-gevent，而该包基于python-greenlet和libevent。注意：greenlet0.3.2在i386环境下有一个已知bug会导致段错误，请使用该版本的人自行升级。
 
 ## 工作流程 ##
+
 假定有一个或多个ssh或者同类型socksv5代理在工作，在此之上做一个http代理，让其他程序使用，达到以下目的：
 
 1. 自动分流，只有特定的域名才进行翻墙。
@@ -55,8 +62,8 @@
 3. 负载均衡，每个upstream服务器尽量均衡访问，并可以设定最高上限。
 
 ## 配置 ##
-默认绑定到本地的8118端口，使用gfw作为滤表文件名。
-向命令行传入配置文件路径可以加载一个到多个配置文件，配置文件为python格式，其中可以定义以下变量：
+
+默认绑定到本地的8118端口，使用gfw作为滤表文件名。向命令行传入配置文件路径可以加载一个到多个配置文件，配置文件为python格式，其中可以定义以下变量：
 
 * logfile: 记录到哪个日志文件。
 * loglevel: 记录级别，默认WARNING。
@@ -96,6 +103,7 @@ IP地址过滤系统，主要是whitenets和blacknets上使用。具体格式为
 * max\_conn: 用于自动配置socks中的max\_conn默认值。
 
 ## gfw_tester ##
+
 用于自动测试gfw文件中的域名是否被墙。
 
 	gfw_tester [-f] gfw [-d]
@@ -108,8 +116,16 @@ IP地址过滤系统，主要是whitenets和blacknets上使用。具体格式为
 # Issus #
 
 ## bug report ##
+
 有问题可以向项目主页[http://github.com/shell909090/antigfw](http://github.com/shell909090/antigfw)提交issus，或者向[我的邮箱](mailto:shell909090@gmail.com)发送信件。
 
 ## lintian ##
+
 > W: antigfw source: diff-contains-git-control-dir .git
 > W: antigfw: init.d-script-uses-usr-interpreter etc/init.d/antigfw /usr/bin/python
+
+## TODO ##
+
+* 完成http上游代理支持
+* 增加ssh密钥管理形式
+* 基于DNSServer写一个dns服务器
