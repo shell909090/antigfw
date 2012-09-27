@@ -17,11 +17,9 @@ def auth_manager(func):
         auth = req.get_header('authorization')
         if auth:
             username, password = base64.b64decode(auth[6:]).split(':')
-            if managers.get(username, None) == password:
-                return func(ps, req)
+            if managers.get(username, None) == password: return func(ps, req)
         logging.info('access to %s without auth' % req.uri.split('?', 1)[0])
-        response_http(req.stream, 401,
-                      headers=[('WWW-Authenticate', 'Basic realm="managers"')])
+        return response_http(401, headers=[('WWW-Authenticate', 'Basic realm="managers"')])
     return realfunc
 
 @serve.ProxyServer.register('/')
