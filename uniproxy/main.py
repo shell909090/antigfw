@@ -4,7 +4,7 @@
 @date: 2012-05-25
 @author: shell.xu
 '''
-import sys, logging, serve, mgr
+import sys, logging, gevent, serve, mgr
 from os import path
 from gevent import server
 
@@ -42,6 +42,8 @@ def main(*cfgs):
     addr = (config.get('localip', ''), config.get('localport', 8118))
     ps = serve.ProxyServer(config)
     try:
+        if config.get('dnsproxy'):
+            gevent.spawn(ps.dns.server, config.get('dnsport', 53))
         try: server.StreamServer(addr, ps.handler).serve_forever()
         except KeyboardInterrupt: pass
     finally: ps.final()

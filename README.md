@@ -70,7 +70,7 @@
 * localip: 绑定到哪个IP，默认0.0.0.0。
 * localport: 绑定到哪个端口，默认8118。
 * proxy: 一个列表，每个元素为一个字典，指名一个代理。
-  * type: 类型目前可以是socks5，预定加入http。
+  * type: 类型目前可以是socks5,http。
   * addr: 服务器地址。
   * port: 端口。
   * max\_conn: 最大可连接数。
@@ -126,6 +126,6 @@ IP地址过滤系统，主要是whitenets和blacknets上使用。具体格式为
 
 ## TODO ##
 
-* 完成http上游代理支持
+* http上游代理支持完成，不过还没测试
 * 增加ssh密钥管理形式
 * 基于DNSServer写一个dns服务器

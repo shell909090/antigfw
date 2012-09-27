@@ -105,7 +105,7 @@ class SocksManager(object):
     @contextmanager
     def get_socket(self, addr, port):
         with self.smph:
-            logger.debug('%s:%d %d/%d allocated.' % (
+            logger.debug('socks5:%s:%d %d/%d allocated.' % (
                     self.s[0][0], self.s[0][1], self.size(), self.max_conn))
             sock = socks5(*self.s)
             try: bind = socks5_connect(sock, (addr, port), self.rdns)
@@ -115,5 +115,5 @@ class SocksManager(object):
             try: yield sock
             finally:
                 if sock: sock.close()
-                logger.debug('%s:%d %d/%d, released.' % (
+                logger.debug('socks5:%s:%d %d/%d, released.' % (
                         self.s[0][0], self.s[0][1], self.size(), self.max_conn))

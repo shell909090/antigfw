@@ -7,7 +7,7 @@
 import os, time, logging
 from urlparse import urlparse
 from contextlib import contextmanager
-from gevent import select, coros
+from gevent import socket, select, coros
 from http import *
 
 __all__ = ['connect', 'http']
@@ -15,9 +15,26 @@ __all__ = ['connect', 'http']
 logger = logging.getLogger('proxy')
 VERBOSE = False
 
+def http_connect(proxy, target, username=None, password=None):
+    sock = socket.socket()
+    sock.connect(proxy)
+    stream = sock.makefile()
+
+    req = HttpRequest('CONNECT', '%s:%d' % target, 'HTTP/1.1')
+    if username and password:
+        req.add_header('proxy-authorization',
+                       base64.b64encode('Basic %s:%s' % (username, password)))
+    req.send_header(stream)
+
+    res = recv_msg(stream, HttpResponse)
+    if res.code == 200: return sock
+    sock.close()
+    return None
+
 class HttpManager(object):
     def __init__(self, addr, port, username=None, password=None,
                  max_conn=10, name=None, **kargs):
+        self.s = ((addr, port), username, password)
         self.smph, self.max_conn = coros.Semaphore(max_conn), max_conn
         self.name = name or 'http:%s:%s' % (addr, port)
 
@@ -26,7 +43,15 @@ class HttpManager(object):
 
     @contextmanager
     def get_socket(self, addr, port):
-        pass
+        with self.smph:
+            logger.debug('http:%s:%d %d/%d allocated.' % (
+                    self.s[0][0], self.s[0][1], self.size(), self.max_conn))
+            sock = http_proxy(self.s[0], (addr, port), self.s[1], self.s[2])
+            try: yield sock
+            finally: 
+                if sock: sock.close()
+                logger.debug('http:%s:%d %d/%d, released.' % (
+                        self.s[0][0], self.s[0][1], self.size(), self.max_conn))
 
 def get_proxy_auth(users):
     def all_pass(req): return None

@@ -5,7 +5,7 @@
 @author: shell.xu
 '''
 import base64, logging
-import socks, proxy, dofilter, netfilter
+import socks, proxy, mydns, dofilter, netfilter
 from http import *
 from os import path
 from urlparse import urlparse
@@ -59,7 +59,7 @@ class DirectManager(object):
             self.count -= 1
 
 class ProxyServer(object):
-    proxytypemap = {'socks5': socks.SocksManager}
+    proxytypemap = {'socks5': socks.SocksManager, 'http': proxy.HttpManager}
     srv_urls = {}
 
     def __init__(self, config):
@@ -68,9 +68,9 @@ class ProxyServer(object):
         self.connpool, self.worklist = [], []
         self.proxy_auth = proxy.get_proxy_auth(self.config.get('users'))
         self.reload()
-        self.dns = netfilter.DNSServer(self.get_conn_mgr,
-                                       dnsserver=self.config.get('dnsserver', None),
-                                       cachesize=self.config.get('dnscache', 1000))
+        self.dns = mydns.DNSServer(self.get_conn_mgr,
+                                   dnsserver=self.config.get('dnsserver', None),
+                                   cachesize=self.config.get('dnscache', 1000))
         self.direct = DirectManager(self.dns)
 
     def reload(self):
