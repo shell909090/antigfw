@@ -4,14 +4,45 @@
 @date: 2012-05-25
 @author: shell.xu
 '''
-import sys, serve, mgr
+import sys, logging, serve, mgr
+from os import path
 from gevent import server
 
+logger = logging.getLogger('main')
+
+def import_config(*cfgs):
+    d = {}
+    for cfg in reversed(cfgs):
+        if not path.exists(cfg): continue
+        try:
+            with open(path.expanduser(cfg)) as fi:
+                eval(compile(fi.read(), cfg, 'exec'), d)
+            logger.info('import config %s' % cfg)
+        except (OSError, IOError): logger.error('import config')
+    return dict([(k, v) for k, v in d.iteritems() if not k.startswith('_')])
+
+def initlog(lv, logfile=None):
+    rootlog = logging.getLogger()
+    if logfile: handler = logging.FileHandler(logfile)
+    else: handler = logging.StreamHandler()
+    handler.setFormatter(
+        logging.Formatter(
+            '%(asctime)s,%(msecs)03d %(name)s[%(levelname)s]: %(message)s',
+            '%H:%M:%S'))
+    rootlog.addHandler(handler)
+    rootlog.setLevel(lv)
+
 def main(*cfgs):
-    if not cfgs: return
-    ps = serve.ProxyServer(*cfgs)
+    if not cfgs:
+        print 'no configure'
+        return
+    config = import_config(*cfgs)
+    initlog(getattr(logging, config.get('loglevel', 'WARNING')),
+            config.get('logfile', None))
+    addr = (config.get('localip', ''), config.get('localport', 8118))
+    ps = serve.ProxyServer(config)
     try:
-        try: server.StreamServer(ps.init(), ps.handler).serve_forever()
+        try: server.StreamServer(addr, ps.handler).serve_forever()
         except KeyboardInterrupt: pass
     finally: ps.final()
 

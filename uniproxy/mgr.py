@@ -43,7 +43,7 @@ active connections<table><tr><td>source</td><td>method</td><td>url</td>
 @serve.ProxyServer.register('/reload')
 @auth_manager
 def mgr_reload(ps, req):
-    ps.init()
+    ps.reload()
     req.recv_body(req.stream)
     return response_http(302, headers=[('location', '/')])
 

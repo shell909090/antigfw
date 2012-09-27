@@ -14,6 +14,18 @@ __all__ = ['connect', 'http']
 logger = logging.getLogger('proxy')
 VERBOSE = False
 
+def get_proxy_auth(users):
+    def all_pass(req): return None
+    def proxy_auth(req):
+        auth = req.get_header('proxy-authorization')
+        if auth:
+            req.headers = [(k, v) for k, v in req.headers if k != 'proxy-authorization']
+            username, password = base64.b64decode(auth[6:]).split(':')
+            if users.get(username, None) == password: return None
+        logging.info('proxy authenticate failed')
+        return response_http(407, headers=[('Proxy-Authenticate', 'Basic realm="users"')])
+    return proxy_auth if users else all_pass
+
 def parse_target(uri):
     u = urlparse(uri)
     r = (u.netloc or u.path).split(':', 1)
