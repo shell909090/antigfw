@@ -4,7 +4,7 @@
 @date: 2012-04-27
 @author: shell.xu
 '''
-import os, time, logging
+import os, copy, time, logging
 from urlparse import urlparse
 from contextlib import contextmanager
 from gevent import socket, select, coros
@@ -94,14 +94,15 @@ def connect(req, sock_factory):
 def http(req, sock_factory):
     t = time.time()
     hostname, port, uri = parse_target(req.uri)
-    req.uri = uri
-    req.headers = [(h, v) for h, v in req.headers if not h.startswith('proxy')]
+    reqx = copy.copy(req)
+    reqx.uri = uri
+    reqx.headers = [(h, v) for h, v in req.headers if not h.startswith('proxy')]
     with sock_factory.get_socket(hostname, port) as sock:
         stream1 = sock.makefile()
 
         if VERBOSE: req.dbg_print()
-        req.send_header(stream1)
-        req.recv_body(req.stream, stream1.write, raw=True)
+        reqx.send_header(stream1)
+        reqx.recv_body(req.stream, stream1.write, raw=True)
         stream1.flush()
 
         res = recv_msg(stream1, HttpResponse)
