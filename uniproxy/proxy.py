@@ -6,13 +6,27 @@
 '''
 import os, time, logging
 from urlparse import urlparse
-from gevent import select
+from contextlib import contextmanager
+from gevent import select, coros
 from http import *
 
 __all__ = ['connect', 'http']
 
 logger = logging.getLogger('proxy')
 VERBOSE = False
+
+class HttpManager(object):
+    def __init__(self, addr, port, username=None, password=None,
+                 max_conn=10, name=None, **kargs):
+        self.smph, self.max_conn = coros.Semaphore(max_conn), max_conn
+        self.name = name or 'http:%s:%s' % (addr, port)
+
+    def size(self): return self.max_conn - self.smph.counter
+    def stat(self): return '%d/%d' % (self.size(), self.max_conn)
+
+    @contextmanager
+    def get_socket(self, addr, port):
+        pass
 
 def get_proxy_auth(users):
     def all_pass(req): return None

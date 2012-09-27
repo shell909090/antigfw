@@ -4,7 +4,7 @@
 @date: 2012-09-26
 @author: shell.xu
 '''
-import os, sys, time, heapq, random, logging
+import os, sys, time, heapq, random, struct, logging
 from contextlib import contextmanager
 from gevent import socket, coros
 import DNS
@@ -131,6 +131,13 @@ class DNSServer(object):
 def get_netaddr(ip, mask):
     return ''.join(map(lambda x, y: chr(ord(x) & ord(y)), ip, mask))
 
+def makemask(num):
+    s = 0
+    for i in xrange(32):
+        s <<= 1
+        s |= i<num
+    return struct.pack('>L', s)
+
 class NetFilter(object):
 
     def __init__(self, filename=None):
@@ -142,10 +149,13 @@ class NetFilter(object):
             addr, mask = line.split(' ', 1)
         elif line.find('/') != -1:
             addr, mask = line.split('/', 1)
-            raise Exception('not impl yet')
+            mask = makemask(int(mask))
         addr, mask = socket.inet_aton(addr), socket.inet_aton(mask)
         self.nets.setdefault(mask, set())
         self.nets[mask].add(get_netaddr(addr, mask))
+
+    def load(self, stream):
+        for line in stream: self.loadline(line.strip())
 
     def loadfile(self, filename):
         openfile = open
@@ -153,10 +163,25 @@ class NetFilter(object):
             import gzip
             openfile = gzip.open
         try:
-            with openfile(filename) as fi:
-                for line in fi: self.loadline(line.strip())
+            with openfile(filename) as fi: self.load(fi)
         except (OSError, IOError): return False
-            
+
+    def save(self, stream):
+        r = []
+        for mask, addrs in self.nets.iteritems():
+            r.extend([(addr, mask) for addr in list(addrs)])
+        for addr, mask in sorted(r, key=lambda x: x[0]):
+            stream.write('%s %s\n' % (socket.inet_ntoa(addr), socket.inet_ntoa(mask)))
+
+    def savefile(self, filepath):
+        openfile = open
+        if filepath.endswith('.gz'):
+            import gzip
+            openfile = gzip.open
+        try:
+            with openfile(filepath, 'w+') as fo: self.save(fo)
+        except (OSError, IOError): return False
+
     def __contains__(self, addr):
         try: addr = socket.inet_aton(addr)
         except TypeError: pass

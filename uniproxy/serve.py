@@ -67,7 +67,6 @@ class ProxyServer(object):
         self.config = config
         self.connpool, self.worklist = [], []
         self.proxy_auth = proxy.get_proxy_auth(self.config.get('users'))
-        self.filter = dofilter.DomainFilter()
         self.reload()
         self.dns = netfilter.DNSServer(self.get_conn_mgr,
                                        dnsserver=self.config.get('dnsserver', None),
@@ -81,17 +80,15 @@ class ProxyServer(object):
                        for cfg in self.config['sshs']]
         self.connpool = [self.proxytypemap[proxy['type']](**proxy) for proxy in proxies]
 
-        self.filter.empty()
-        for filepath in self.config['filter']: self.filter.loadfile(filepath)
+        self.filter = self.load_filter(dofilter.DomainFilter, 'filter')
+        self.whitenf = self.load_filter(netfilter.NetFilter, 'whitenets')
+        self.blacknf = self.load_filter(netfilter.NetFilter, 'blacknets')
 
-        self.whitenf = self.load_netfilter('whitenets')
-        self.blacknf = self.load_netfilter('blacknets')
-
-    def load_netfilter(self, name):
+    def load_filter(self, cls, name):
         if not self.config.get(name): return None
-        nf = netfilter.NetFilter()
-        for filepath in self.config[name]: nf.loadfile(filepath)
-        return nf
+        f = cls()
+        for filepath in self.config[name]: f.loadfile(filepath)
+        return f
 
     @classmethod
     def register(cls, url):
@@ -111,7 +108,7 @@ class ProxyServer(object):
         return min(self.connpool, key=lambda x: x.size())
 
     def usesocks(self, hostname):
-        if hostname in self.filter: return True
+        if self.filter and hostname in self.filter: return True
         if self.whitenf or self.blacknf:
             addr = self.dns.gethostbyname(hostname)
             if addr is None: return False

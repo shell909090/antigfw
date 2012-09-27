@@ -93,7 +93,7 @@ def socks5_connect(sock, target, rdns=True):
 class SocksManager(object):
 
     def __init__(self, addr, port, username=None, password=None,
-                 rdns=True, max_conn=10, name=None, **params):
+                 rdns=True, max_conn=10, name=None, **kargs):
         self.s = ((addr, port), username, password)
         self.rdns = rdns
         self.smph, self.max_conn = coros.Semaphore(max_conn), max_conn
