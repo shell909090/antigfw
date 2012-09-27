@@ -55,12 +55,12 @@ def connect(req, sock_factory):
 def http(req, sock_factory):
     t = time.time()
     hostname, port, uri = parse_target(req.uri)
+    req.uri = uri
     req.headers = [(h, v) for h, v in req.headers if not h.startswith('proxy')]
     with sock_factory.get_socket(hostname, port) as sock:
         stream1 = sock.makefile()
 
         if VERBOSE: req.dbg_print()
-        stream1.write(' '.join((req.method, uri, req.version)) + '\r\n')
         req.send_header(stream1)
         req.recv_body(req.stream, stream1.write, raw=True)
         stream1.flush()

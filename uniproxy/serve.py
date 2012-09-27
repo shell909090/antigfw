@@ -22,9 +22,8 @@ def mgr_default(self, req):
 
 def fmt_reqinfo(info):
     req, usesocks, addr = info
-    return '%s:%d %s %s %s' % (
-        addr[0], addr[1], req.method, req.uri.split('?', 1)[0],
-        'socks' if usesocks else 'direct')
+    return '%s %s %s' % (
+        req.method, req.uri.split('?', 1)[0], 'socks' if usesocks else 'direct')
 
 def ssh_to_proxy(cfg, max_conn=None):
     if 'sockport' in cfg:
