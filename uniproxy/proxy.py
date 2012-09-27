@@ -26,7 +26,7 @@ def connect(req, sock_factory):
     try:
         with sock_factory(hostname, port) as sock:
             res = HttpResponse(req.version, 200, 'OK')
-            res.sendto(req.stream)
+            res.send_header(req.stream)
             req.stream.flush()
 
             fd1, fd2 = req.stream.fileno(), sock.fileno()
