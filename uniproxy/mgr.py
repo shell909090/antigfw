@@ -31,7 +31,7 @@ dns cache: %d/%d, dns connections: %s.<p/>
 active connections<table><tr><td>source</td><td>method</td><td>url</td>
 <td>type</td></tr>%s</table></body></html>''' % (
         ''.join(['''<tr><td>%s</td><td>%s</td></tr>''' % (s.name, s.stat())
-                 for s in ps.sockcfg]),
+                 for s in ps.connpool + [ps.direct,]]),
         len(ps.dns.cache), ps.dns.cachesize, ps.dns.stat(),
         ''.join(('''<tr><td>%s:%d</td><td>%s</td><td>%s</td><td>%s</td></tr>''' % (
                 addr[0], addr[1], req.method, req.uri.split('?', 1)[0],

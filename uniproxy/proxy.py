@@ -24,7 +24,7 @@ def parse_target(uri):
 def connect(req, sock_factory):
     hostname, port, uri = parse_target(req.uri)
     try:
-        with sock_factory(hostname, port) as sock:
+        with sock_factory.get_socket(hostname, port) as sock:
             res = HttpResponse(req.version, 200, 'OK')
             res.send_header(req.stream)
             req.stream.flush()
@@ -44,7 +44,7 @@ def http(req, sock_factory):
     t = time.time()
     hostname, port, uri = parse_target(req.uri)
     req.headers = [(h, v) for h, v in req.headers if not h.startswith('proxy')]
-    with sock_factory(hostname, port) as sock:
+    with sock_factory.get_socket(hostname, port) as sock:
         stream1 = sock.makefile()
 
         if VERBOSE: req.dbg_print()

@@ -93,28 +93,17 @@ def socks5_connect(sock, target, rdns=True):
 class SocksManager(object):
 
     def __init__(self, addr, port, username=None, password=None,
-                 rdns=True, max_conn=10, name=None, dnsserver=None,
-                 **params):
+                 rdns=True, max_conn=10, name=None, **params):
         self.s = ((addr, port), username, password)
         self.rdns = rdns
         self.smph, self.max_conn = coros.Semaphore(max_conn), max_conn
         self.name = name or 'socks5:%s:%s' % (addr, port)
-        self.dnssock, self.dnsserver = None, dnsserver
-        if dnsserver is not None: self.connect_dnsserver()
 
-    def connect_dnsserver(self):
-        if self.dnssock: self.dnssock.close()
-        else: self.smph.acquire()
-        self.dnssock = socks5(*self.s)
-        socks5_connect(self.dnssock, (self.dnsserver, 53), self.rdns)
-
-    def size(self):
-        return self.max_conn - self.smph.counter
-
+    def size(self): return self.max_conn - self.smph.counter
     def stat(self): return '%d/%d' % (self.size(), self.max_conn)
 
     @contextmanager
-    def with_socks(self, addr, port):
+    def get_socket(self, addr, port):
         with self.smph:
             logger.debug('%s:%d %d/%d allocated.' % (
                     self.s[0][0], self.s[0][1], self.size(), self.max_conn))

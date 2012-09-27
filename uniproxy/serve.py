@@ -39,9 +39,40 @@ def initlog(lv, logfile=None):
 
 logger = logging.getLogger('server')
 
-def mgr_default(self, req, stream):
-    req.recv_body(stream)
-    response_http(stream, 404, body='Page not found')
+def mgr_default(self, req):
+    req.recv_body(req.stream)
+    return response_http(404, body='Page not found')
+
+def fmt_reqinfo(info):
+    req, usesocks, addr = info
+    return '%s:%d %s %s %s' % (
+        addr[0], addr[1], req.method, req.uri.split('?', 1)[0],
+        'socks' if usesocks else 'direct')
+
+class DirectManager(object):
+    name = 'direct'
+
+    def __init__(self, dns): self.count, self.dns = 0, dns
+
+    def size(self): return 65536
+    def stat(self): return '%d/unlimited' % self.count
+
+    @contextmanager
+    def get_socket(self, addr, port):
+        self.count += 1
+        sock = socket.socket()
+        try:
+            # 没办法，gevent的dns这时如果碰到多ip返回值，会直接报错
+            try: sock.connect((addr, port))
+            except dns.DNSError:
+                # 这下不会拖慢响应了，要死最多死这个上下文
+                addr = self.dns.gethostbyname(addr)
+                if addr is None: return
+                sock.connect((addr, port))
+            yield sock
+        finally:
+            sock.close()
+            self.count -= 1
 
 class ProxyServer(object):
     proxytypemap = {'socks5': socks.SocksManager}
@@ -49,9 +80,10 @@ class ProxyServer(object):
 
     def __init__(self, *cfgs):
         self.cfgs, self.config = cfgs, {}
-        self.sockcfg, self.worklist = [], []
+        self.connpool, self.worklist = [], []
         self.filter = dofilter.DomainFilter()
-        self.dns, self.whitenf, self.blacknf = None, None, None
+        self.direct, self.dns = None, None
+        self.whitenf, self.blacknf = None, None
 
     @classmethod
     def register(cls, url):
@@ -65,26 +97,6 @@ class ProxyServer(object):
         self.worklist.append(reqinfo)
         try: yield
         finally: self.worklist.remove(reqinfo)
-
-    @contextmanager
-    def with_sock(self, addr, port):
-        sock = socket.socket()
-        # 没办法，gevent的dns这时如果碰到多ip返回值，会直接报错
-        try: sock.connect((addr, port))
-        except dns.DNSError:
-            # 这下不会拖慢响应了，要死最多死这个上下文
-            addr = self.dns.gethostbyname(addr)
-            if addr is None: return
-            sock.connect((addr, port))
-        try: yield sock
-        finally: sock.close()
-
-    @staticmethod
-    def fmt_reqinfo(info):
-        req, usesocks, addr = info
-        return '%s:%d %s %s %s' % (
-            addr[0], addr[1], req.method, req.uri.split('?', 1)[0],
-            'socks' if usesocks else 'direct')
 
     def ssh_to_proxy(self, cfg):
         if 'sockport' in cfg:
@@ -102,7 +114,7 @@ class ProxyServer(object):
         proxies = self.config.get('proxies', None)
         if not proxies and self.config.get('max_conn', None):
             proxies = [self.ssh_to_proxy(cfg) for cfg in self.config['sshs']]
-        self.sockcfg = [self.proxytypemap[proxy['type']](**proxy) for proxy in proxies]
+        self.connpool = [self.proxytypemap[proxy['type']](**proxy) for proxy in proxies]
 
     def load_filters(self):
         self.filter.empty()
@@ -121,16 +133,19 @@ class ProxyServer(object):
         logger.info('init ProxyServer')
 
         self.load_socks()
-        self.load_filters()
-        self.dns = netfilter.DNSServer(self.get_socks_factory,
+        self.dns = netfilter.DNSServer(self.get_conn_mgr,
                                        dnsserver=self.config.get('dnsserver', None),
                                        cachesize=self.config.get('dnscache', 1000))
+        self.direct = DirectManager(self.dns)
+
+        self.load_filters()
         self.whitenf = self.load_netfilter('whitenets')
         self.blacknf = self.load_netfilter('blacknets')
         return self.config.get('localip', ''), self.config.get('localport', 8118)
 
-    def get_socks_factory(self):
-        return min(self.sockcfg, key=lambda x: x.size())
+    def get_conn_mgr(self, direct):
+        if direct: return self.direct
+        return min(self.connpool, key=lambda x: x.size())
 
     def proxy_auth(self, req):
         users = self.config.get('users')
@@ -173,9 +188,8 @@ class ProxyServer(object):
         usesocks = self.usesocks(hostname.split(':', 1)[0])
         reqinfo = (req, usesocks, addr)
         with self.with_worklist(reqinfo):
-            logger.info(self.fmt_reqinfo(reqinfo))
-            sf = self.get_socks_factory().with_socks if usesocks else self.with_sock
-            return func(req, sf)
+            logger.info(fmt_reqinfo(reqinfo))
+            return func(req, self.get_conn_mgr(not usesocks))
 
     def handler(self, sock, addr):
         stream = sock.makefile()
