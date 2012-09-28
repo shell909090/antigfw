@@ -10,7 +10,7 @@
 
 1. 安装python-gevent，python-dns和openssh-client包，并且有一个以上可以用于翻墙的ssh帐号。
 2. 在翻墙帐号上设定密钥而非密码(将你的公钥导出到~/.ssh/authorized_keys文件，具体参照[Linux](http://blog.yening.cn/2006/10/30/187.html)和[Windows](http://butian.org/knowledge/linux/1632.html))。
-3. 设定/etc/default/antigfw文件，修改其中的servers记录。
+3. 设定/etc/default/antigfw文件，修改其中的sshs记录。
 4. 完成修改后，将上述配置中的daemon由False改为True。
 5. 用/etc/init.d/antigfw restart重启服务。
 6. 在浏览器上设定服务器的8118端口为代理，类型为http代理，如：192.168.1.8:8118(其中192.168.1.8为你启动antigfw服务的机器IP)。
