@@ -74,10 +74,10 @@ class ProxyServer(object):
         self.direct = DirectManager(self.dns)
 
     def reload(self):
-        proxies = self.config.get('proxies', None)
-        if not proxies and self.config.get('max_conn', None):
-            proxies = [ssh_to_proxy(cfg, self.config['max_conn'])
-                       for cfg in self.config['sshs']]
+        proxies = self.config.get('proxies', [])
+        if self.config.get('max_conn', None):
+            proxies.extend([ssh_to_proxy(cfg, self.config['max_conn'])
+                            for cfg in self.config['sshs']])
         self.connpool = [self.proxytypemap[proxy['type']](**proxy) for proxy in proxies]
 
         self.filter = self.load_filter(dofilter.DomainFilter, 'filter')

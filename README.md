@@ -8,7 +8,7 @@
 
 ## HOWTO ##
 
-1. 安装python-gevent和openssh-client包，并且有一个以上可以用于翻墙的ssh帐号。
+1. 安装python-gevent，python-dns和openssh-client包，并且有一个以上可以用于翻墙的ssh帐号。
 2. 在翻墙帐号上设定密钥而非密码(将你的公钥导出到~/.ssh/authorized_keys文件，具体参照[Linux](http://blog.yening.cn/2006/10/30/187.html)和[Windows](http://butian.org/knowledge/linux/1632.html))。
 3. 设定/etc/default/antigfw文件，修改其中的servers记录。
 4. 完成修改后，将上述配置中的daemon由False改为True。
@@ -19,9 +19,10 @@
 ## 管理 ##
 
 如果某个域名需要被添加到翻墙列表中，修改/etc/uniproxy/gfw，一行一条记录，然后访问[http://192.168.1.8:8118/load](http://192.168.1.8:8118/load)。系统会重新读取gfw文件。另外，欢迎将你的gfw文件的补丁发送给我。
-如果你想要看ssh代理的使用状况，当前有多少页面正在处理，可以访问[http://192.168.1.8:8118/stat](http://192.168.1.8:8118/stat)。
-如果你想要关闭uniproxy，可以访问[http://192.168.1.8:8118/stat](http://192.168.1.8:8118/stat)。如果是由antigfw监控uniproxy启动的，uniproxy会自动重启。
-如果不想打包重装，又想获得最新的gfw列表，可以执行gfw_tester -d。将标准输出定位到/etc/uniproxy/gfw。*注意：这会覆盖你原本的gfw列表配置。*
+
+PS：通常情况下，你不需要管理域名列表。因为DNS和netfilter会自动分析是境内还是境外网站。
+
+如果你想要看ssh代理的使用状况，当前有多少页面正在处理，可以访问[http://localhost:8118/](http://localhost:8118/)。
 
 # antigfw #
 
@@ -29,11 +30,16 @@
 
 启动uniproxy和ssh，互相连接，形成自动翻墙系统。
 
-## 配置 ##
+## 全局配置 ##
 
 * logfile: 记录到哪个日志文件。
+* loglevel: 记录级别，默认WARNING。
 * daemon: 是否启动服务程序，用于暂停服务，阻止软件包刚刚完成安装后服务立刻启动导致的配置错误
 * pidfile: pid文件。
+
+## ssh配置 ##
+
+* autossh: 控制ssh启动管理是否生效
 * sshs: 一个列表，每个元素记录一个服务器的配置。
   * sockport: 代理的本地工作端口，即"socksv5"端口。整型。
   * listenport: 转发模式的代理端口，一般是http端口。整型，格式为(本地端口,远程端口)。注意远程ip是localhost。
@@ -41,7 +47,6 @@
   * sshhost: 代理服务器主机名。
   * sshport: 代理服务器端口名。
   * sshprivfile: 代理服务器私钥文件路径。
-* uniproxy: 是否启动uniproxy。
 
 # uniproxy #
 
@@ -51,24 +56,39 @@
 
 ## 依赖 ##
 
-系统基于python-gevent，而该包基于python-greenlet和libevent。注意：greenlet0.3.2在i386环境下有一个已知bug会导致段错误，请使用该版本的人自行升级。
+* python-gevent。该包基于python-greenlet和libevent。注意：greenlet0.3.2在i386环境下有一个已知bug会导致段错误，请使用该版本的人自行升级。
+* python-dns。
 
 ## 工作流程 ##
 
 假定有一个或多个ssh或者同类型socksv5代理在工作，在此之上做一个http代理，让其他程序使用，达到以下目的：
 
-1. 自动分流，只有特定的域名才进行翻墙。
+1. 自动分流，只有特定的域名才进行翻墙。内置了三套机制来分析是否需要翻墙。
+  1. 域名分析模式，当域名匹配到域名列表，则翻墙。
+  2. 白名单模式，当域名的IP在白名单地址表中，则翻墙。
+  3. 黑名单模式，当域名的IP不在黑名单地址表中，则翻墙。
 2. 支持CONNECT模式，可以用于https翻墙。
 3. 负载均衡，每个upstream服务器尽量均衡访问，并可以设定最高上限。
 
-## 配置 ##
+默认模式是域名+黑名单混合。域名内放置常用域名列表，黑名单是来自[chnroutes](https://github.com/fivesheep/chnroutes)的IP列表。凡是非中国IP，一概翻墙。这会引入另一个问题，即，对于某些智能DNS，它会引导你访问国外站点而非国内站点。
 
-默认绑定到本地的8118端口，使用gfw作为滤表文件名。向命令行传入配置文件路径可以加载一个到多个配置文件，配置文件为python格式，其中可以定义以下变量：
+另外，在dnsproxy模式下会打开dns代理服务。这个服务会使用uniproxy内置的代理服务群，以tcp方式转发udp的dns请求，从而避免dns劫持和污染。你可以仅将DNS服务器设定到本机，而不用uniproxy代理所有请求。
+
+## 基本配置 ##
+
+默认绑定到本地的8118端口。向命令行传入配置文件路径可以加载一个到多个配置文件，配置文件为python格式，其中可以定义以下变量：
 
 * logfile: 记录到哪个日志文件。
 * loglevel: 记录级别，默认WARNING。
+* uniproxy: 是否启动uniproxy。
 * localip: 绑定到哪个IP，默认0.0.0.0。
 * localport: 绑定到哪个端口，默认8118。
+* managers: 一个dict，用户名为key，密码为value。如果为None或者为空则不验证。
+* users: 一个dict，用户名为key，密码为value。如果为None或者为空则不验证。
+
+## 代理配置 ##
+
+* max_conn: 默认最大可连接数。如果设定为0，则sshs到proxy的自动转换不生效。
 * proxy: 一个列表，每个元素为一个字典，指名一个代理。
   * type: 类型目前可以是socks5,http。
   * addr: 服务器地址。
@@ -78,15 +98,21 @@
   * username: 连接用户名。
   * password: 密码。
   * rdns: 是否使用dns解析域名。
+
+## 过滤配置 ##
+
 * filter: 一个列表，每个元素都是字符串，表示滤表文件名。默认gfw。
-* managers: 一个dict，用户名为key，密码为value。如果为None或者为空则不验证。
-* users: 一个dict，用户名为key，密码为value。如果为None或者为空则不验证。
-* dnsserver: 一个DNS服务器名，代理在需要DNS查询时会使用这个DNS作为默认DNS。
-* dnscache: DNS缓存大小，默认为512。
 * whitenets: 翻墙白名单，一个列表，每个元素都是字符串，表示NetFilter文件名。
   当DNS解析后的结果在此IP范围内，会启用代理。None不启用。
 * blacknets: 翻墙黑名单，一个列表，每个元素都是字符串，表示NetFilter文件名。
   当启用后，DNS解析结果不在此IP范围内，会启用代理。None不启用。
+
+## DNS配置 ##
+
+* dnsserver: 一个DNS服务器名，代理在需要DNS查询时会使用这个DNS作为默认DNS。
+* dnscache: DNS缓存大小，默认为512。
+* dnsproxy: 控制是否打开dnsproxy。
+* dnsport: 打开的dnsport在哪个端口。
 
 ## NetFilter ##
 
@@ -99,7 +125,7 @@ IP地址过滤系统，主要是whitenets和blacknets上使用。具体格式为
 
 ## 自动配置 ##
 
-* socks: 当socks=None，并且servers有配置的时候，会自动为每个server产生一条socks记录。
+* socks: 当max_conn不为0，并且sshs有配置的时候，会自动为每个sshs产生一条proxy记录。
 * max\_conn: 用于自动配置socks中的max\_conn默认值。
 
 ## gfw_tester ##
@@ -113,6 +139,12 @@ IP地址过滤系统，主要是whitenets和blacknets上使用。具体格式为
 
 注意：这个测试程序只测试首页是否连通，因此有很多网站可能无法发现被墙，从而导致误删。例如google.com。
 
+## dns2tcp ##
+
+在53端口上运行一个dns服务器，将请求以tcp方式转发到远程服务器上（默认8.8.8.8）。由于gfw只对udp包进行污染，因此可以避免dns污染问题。
+
+但是，由于仅仅做了udp-tcp转换，而没有任何加密。因此无法保证内容不被拦截和替换。
+
 # Issus #
 
 ## bug report ##
@@ -121,11 +153,10 @@ IP地址过滤系统，主要是whitenets和blacknets上使用。具体格式为
 
 ## lintian ##
 
-> W: antigfw source: diff-contains-git-control-dir .git
-> W: antigfw: init.d-script-uses-usr-interpreter etc/init.d/antigfw /usr/bin/python
+	W: antigfw source: diff-contains-git-control-dir .git
+	W: antigfw: init.d-script-uses-usr-interpreter etc/init.d/antigfw /usr/bin/python
 
 ## TODO ##
 
 * http上游代理支持完成，不过还没测试
 * 增加ssh密钥管理形式
-* dns服务器可以使用域名缓存

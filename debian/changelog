@@ -1,3 +1,10 @@
+antigfw (1.6) unstable; urgency=low
+
+  * dns proxy server
+  * dns2tcp
+
+ -- Shell Xu <shell909090@gmail.com>  Fri, 28 Sep 2012 11:38:54 +0800
+
 antigfw (1.5) unstable; urgency=low
 
   * new dns resolve system.
