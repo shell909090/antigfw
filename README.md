@@ -128,4 +128,4 @@ IP地址过滤系统，主要是whitenets和blacknets上使用。具体格式为
 
 * http上游代理支持完成，不过还没测试
 * 增加ssh密钥管理形式
-* 基于DNSServer写一个dns服务器
+* dns服务器可以使用域名缓存

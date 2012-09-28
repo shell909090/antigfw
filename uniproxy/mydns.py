@@ -128,14 +128,11 @@ class DNSServer(object):
         else: return random.choice(r[1])
 
     def on_datagram(self, data):
-        count = DNS.unpack16bit(data[:2])
-        if len(data[2:]) != count:
-            logging.warn('unknown dns query format')
-            return None
         with self.smph:
-            with self.get_conn_mgr(False).get_socket(self.DNSServer, self.DNSPORT) as sock:
+            with self.get_conn_mgr(False).get_socket(self.dnsserver, self.DNSPORT) as sock:
                 stream = sock.makefile()
-                stream.write(data)
+                s = DNS.pack16bit(len(data))
+                stream.write(s+data)
                 stream.flush()
 
                 s = stream.read(2)
@@ -143,17 +140,18 @@ class DNSServer(object):
                 count = DNS.unpack16bit(s)
                 reply = stream.read(count)
                 if len(reply) == 0: raise EOFError()
-        return s + reply
+        return reply
 
     def server(self, port=53):
-        server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        server.bind(('', port))
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.bind(('', port))
         logger.info('init DNS Server')
 
         while True:
-            data, addr = server.recvfrom(2048)
+            data, addr = sock.recvfrom(1024)
+            logger.debug('data come in from %s' % str(addr))
             try:
                 r = self.on_datagram(data)
                 if r is None: continue
-                server.sendto(r, address=addr)
+                sock.sendto(r, addr)
             except Exception, err: logger.exception(err)
