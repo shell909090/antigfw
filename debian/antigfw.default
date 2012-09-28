@@ -22,6 +22,8 @@ users	  = {}
 # 代理配置
 max_conn  = 36
 proxies   = None
+conn_tout = None
+http_tout = 600
 
 # 过滤配置
 filter    = ['/etc/uniproxy/gfw', '/usr/share/uniproxy/gfw.gz']

@@ -10,7 +10,7 @@ from http import *
 from os import path
 from urlparse import urlparse
 from contextlib import contextmanager
-from gevent import socket, dns
+from gevent import socket, dns, with_timeout, Timeout
 
 __all__ = ['ProxyServer',]
 
@@ -119,9 +119,15 @@ class ProxyServer(object):
         return False
 
     def do_req(self, req, addr):
+        authres = self.proxy_auth(req)
+        if authres is not None:
+            res.sendto(req.stream)
+            return res
+
         u = urlparse(req.uri)
         if req.method.upper() == 'CONNECT':
             hostname, func = u.path, proxy.connect
+            tout = self.config.get('conn_tout')
         else:
             if not u.netloc:
                 logger.info('manager %s' % (u.path,))
@@ -129,20 +135,21 @@ class ProxyServer(object):
                 res.sendto(req.stream)
                 return res
             hostname, func = u.netloc, proxy.http
-        authres = self.proxy_auth(req)
-        if authres is not None:
-            res.sendto(req.stream)
-            return res
+            tout = self.config.get('http_tout')
+
         usesocks = self.usesocks(hostname.split(':', 1)[0])
         reqinfo = (req, usesocks, addr, time.time())
         with self.with_worklist(reqinfo):
             logger.info(fmt_reqinfo(reqinfo))
-            return func(req, self.get_conn_mgr(not usesocks))
+            if not tout: return func(req, self.get_conn_mgr(not usesocks))
+            return with_timeout(
+                tout, func, req, self.get_conn_mgr(not usesocks))
 
     def handler(self, sock, addr):
         stream = sock.makefile()
         try:
             while self.do_req(recv_msg(stream, HttpRequest), addr): pass
+        except Timeout, err: logger.debug('connection timeout')
         except (EOFError, socket.error): logger.debug('network error')
         except Exception, err: logger.exception('unknown')
         sock.close()

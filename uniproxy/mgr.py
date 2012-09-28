@@ -41,12 +41,11 @@ socks_stat = template.Template(template='''
     <tr><td>{%=i.name%}</td><td>{%=i.stat()%}</td></tr>
   {%end%}
 </table><p/>
-active connections
 <table>
   {%import time%}
   {%ti = time.time()%}
   <tr><td>source</td><td>method</td><td>url</td><td>type</td><td>time</td></tr>
-  {%for req, usesocks, addr, t in ps.worklist:%}
+  {%for req, usesocks, addr, t in sorted(ps.worklist, key=lambda x: x[3]):%}
     <tr><td>{%=addr[0]%}:{%=addr[1]%}</td><td>{%=req.method%}</td>
     <td>{%=req.uri.split('?', 1)[0]%}</td><td>{%='socks' if usesocks else 'direct'%}</td>
     <td>{%="%0.2f" % (ti-t)%}</td></tr>
