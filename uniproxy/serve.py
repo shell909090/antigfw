@@ -74,7 +74,8 @@ class ProxyServer(object):
         self.direct = DirectManager(self.dns)
 
     def reload(self):
-        proxies = self.config.get('proxies', [])
+        proxies = self.config.get('proxies', None)
+        if proxies is None: proxies = []
         if self.config.get('max_conn', None):
             proxies.extend([ssh_to_proxy(cfg, self.config['max_conn'])
                             for cfg in self.config['sshs']])

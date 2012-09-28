@@ -10,7 +10,7 @@ version = '1.6'
 description = 'toolset for cross GFW'
 long_description = ' toolset for cross GFW, include such tools.\
   * auto start multi ssh tunnel\
-  * http proxy use socks as upstream
+  * http proxy use socks as upstream\
   * dns proxy use tcp over ssh'
 
 setup(name='antigfw', version=version,
