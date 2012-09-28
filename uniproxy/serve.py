@@ -4,7 +4,7 @@
 @date: 2012-04-26
 @author: shell.xu
 '''
-import base64, logging
+import time, base64, logging
 import socks, proxy, mydns, dofilter, netfilter
 from http import *
 from os import path
@@ -21,7 +21,7 @@ def mgr_default(self, req):
     return response_http(404, body='Page not found')
 
 def fmt_reqinfo(info):
-    req, usesocks, addr = info
+    req, usesocks, addr, t = info
     return '%s %s %s' % (
         req.method, req.uri.split('?', 1)[0], 'socks' if usesocks else 'direct')
 
@@ -134,7 +134,7 @@ class ProxyServer(object):
             res.sendto(req.stream)
             return res
         usesocks = self.usesocks(hostname.split(':', 1)[0])
-        reqinfo = (req, usesocks, addr)
+        reqinfo = (req, usesocks, addr, time.time())
         with self.with_worklist(reqinfo):
             logger.info(fmt_reqinfo(reqinfo))
             return func(req, self.get_conn_mgr(not usesocks))
