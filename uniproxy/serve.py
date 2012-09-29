@@ -5,7 +5,7 @@
 @author: shell.xu
 '''
 import time, base64, logging
-import socks, proxy, mydns, dofilter, netfilter
+import socks, proxy, conn, mydns, dofilter, netfilter
 from http import *
 from os import path
 from urlparse import urlparse
@@ -33,33 +33,8 @@ def ssh_to_proxy(cfg, max_conn=None):
         return {'type': 'http', 'addr': '127.0.0.1', 'port': cfg['listenport'][0],
                 'max_conn': max_conn, 'name': 'http:%s@%s' % (cfg['username'], cfg['sshhost'])}
 
-class DirectManager(object):
-    name = 'direct'
-
-    def __init__(self, dns): self.count, self.dns = 0, dns
-
-    def size(self): return 65536
-    def stat(self): return '%d/unlimited' % self.count
-
-    @contextmanager
-    def get_socket(self, addr, port):
-        self.count += 1
-        sock = socket.socket()
-        try:
-            # 没办法，gevent的dns这时如果碰到多ip返回值，会直接报错
-            try: sock.connect((addr, port))
-            except dns.DNSError:
-                # 这下不会拖慢响应了，要死最多死这个上下文
-                addr = self.dns.gethostbyname(addr)
-                if addr is None: return
-                sock.connect((addr, port))
-            yield sock
-        finally:
-            sock.close()
-            self.count -= 1
-
 class ProxyServer(object):
-    proxytypemap = {'socks5': socks.SocksManager, 'http': proxy.HttpManager}
+    proxytypemap = {'socks5': socks.SocksManager, 'http': conn.HttpManager}
     srv_urls = {}
 
     def __init__(self, config):
@@ -71,7 +46,7 @@ class ProxyServer(object):
         self.dns = mydns.DNSServer(self.get_conn_mgr,
                                    dnsserver=self.config.get('dnsserver', None),
                                    cachesize=self.config.get('dnscache', 1000))
-        self.direct = DirectManager(self.dns)
+        self.direct = conn.DirectManager(self.dns)
 
     def reload(self):
         proxies = self.config.get('proxies', None)

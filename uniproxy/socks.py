@@ -4,7 +4,7 @@
 @date: 2010-06-04
 @author: shell.xu
 '''
-import struct, logging
+import struct, logging, conn
 from contextlib import contextmanager
 from gevent import socket, coros
 
@@ -90,17 +90,13 @@ def socks5_connect(sock, target, rdns=True):
     logger.debug('socks connected with %s:%s' % target)
     return boundaddr, boundport
 
-class SocksManager(object):
+class SocksManager(conn.Manager):
 
     def __init__(self, addr, port, username=None, password=None,
                  rdns=True, max_conn=10, name=None, **kargs):
+        super(HttpManager, self).__init__(max_conn, name or 'socks5:%s:%s' % (addr, port))
         self.s = ((addr, port), username, password)
         self.rdns = rdns
-        self.smph, self.max_conn = coros.Semaphore(max_conn), max_conn
-        self.name = name or 'socks5:%s:%s' % (addr, port)
-
-    def size(self): return self.max_conn - self.smph.counter
-    def stat(self): return '%d/%d' % (self.size(), self.max_conn)
 
     @contextmanager
     def get_socket(self, addr, port):
