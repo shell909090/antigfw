@@ -103,7 +103,7 @@ class DNSServer(conn.Manager):
     RETRY     = 3
 
     def __init__(self, get_conn_mgr, dnsserver=None, cachesize=512, max_conn=10):
-        super(HttpManager, self).__init__(max_conn, 'dns')
+        super(DNSServer, self).__init__(max_conn, 'dns')
         self.dnsserver = dnsserver or self.DNSSERVER
         self.cache, self.cachesize = ObjHeap(cachesize), cachesize
         self.get_conn_mgr = get_conn_mgr

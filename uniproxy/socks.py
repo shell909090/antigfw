@@ -94,7 +94,7 @@ class SocksManager(conn.Manager):
 
     def __init__(self, addr, port, username=None, password=None,
                  rdns=True, max_conn=10, name=None, **kargs):
-        super(HttpManager, self).__init__(max_conn, name or 'socks5:%s:%s' % (addr, port))
+        super(SocksManager, self).__init__(max_conn, name or 'socks5:%s:%s' % (addr, port))
         self.s = ((addr, port), username, password)
         self.rdns = rdns
 
