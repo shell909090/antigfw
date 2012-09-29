@@ -22,7 +22,7 @@ users	  = {}
 # 代理配置
 max_conn  = 36
 proxies   = None
-conn_tout = None
+conn_tout = 3600
 http_tout = 600
 
 # 过滤配置

@@ -11,6 +11,10 @@ import DNS
 logger = logging.getLogger('dns')
 
 def nslookup(sock, name):
+    try:
+        socket.inet_aton(name)
+        return name
+    except socket.error: pass
     stream = sock.makefile()
     m = DNS.Mpacker()
     qtype = DNS.Type.A
