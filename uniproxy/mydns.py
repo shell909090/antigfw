@@ -4,7 +4,7 @@
 @date: 2012-09-27
 @author: shell.xu
 '''
-import struct, random, logging, cStringIO, 
+import sys, struct, random, logging, cStringIO
 from gevent import socket
 
 logger = logging.getLogger('dns')
@@ -111,11 +111,12 @@ def packname(name):
 def unpackname(s, o):
     r = []
     c = ord(s.read(1))
-    if c & 0xC0 == 0xC0:
-        c = (c << 8) + ord(s.read(1)) & 0x3FFF
-        return unpackname(cStringIO.StringIO(o[c:]), o)
     while c != 0:
-        r.append(s.read(c))
+        if c & 0xC0 == 0xC0:
+            c = (c << 8) + ord(s.read(1)) & 0x3FFF
+            r.append(unpackname(cStringIO.StringIO(o[c:]), o))
+            break
+        else: r.append(s.read(c))
         c = ord(s.read(1))
     return '.'.join(r)
 
@@ -197,6 +198,13 @@ def nslookup(name):
     return [rdata for name, type, cls, ttl, rdata in r.ans if type == TYPE.A]
 
 def nslookup_s(name, sock, type=TYPE.A):
+    logger.debug('name: '+name)
     q = mkquery((name, type))
     r = unpack_record(query_by_tcp(q, None, sock.makefile()))
     return [rdata for name, type, cls, ttl, rdata in r.ans if type == TYPE.A]
+
+def main():
+    r = query(sys.argv[1], server='127.0.0.1')
+    r.show(sys.stdout)
+
+if __name__ == '__main__': main()

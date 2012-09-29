@@ -8,7 +8,7 @@
 
 ## HOWTO ##
 
-1. 安装python-gevent，python-dns和openssh-client包，并且有一个以上可以用于翻墙的ssh帐号。
+1. 安装python-gevent和openssh-client包，并且有一个以上可以用于翻墙的ssh帐号。
 2. 在翻墙帐号上设定密钥而非密码(将你的公钥导出到~/.ssh/authorized_keys文件，具体参照[Linux](http://blog.yening.cn/2006/10/30/187.html)和[Windows](http://butian.org/knowledge/linux/1632.html))。
 3. 设定/etc/default/antigfw文件，修改其中的sshs记录。
 4. 完成修改后，将上述配置中的daemon由False改为True。
@@ -57,7 +57,6 @@ PS：通常情况下，你不需要管理域名列表。因为DNS和netfilter会
 ## 依赖 ##
 
 * python-gevent。该包基于python-greenlet和libevent。注意：greenlet0.3.2在i386环境下有一个已知bug会导致段错误，请使用该版本的人自行升级。
-* python-dns。
 
 ## 工作流程 ##
 
