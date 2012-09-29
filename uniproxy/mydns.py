@@ -4,7 +4,7 @@
 @date: 2012-09-27
 @author: shell.xu
 '''
-import time, heapq, random, logging
+import time, heapq, random, logging, conn
 from gevent import socket, coros
 import DNS
 
@@ -96,20 +96,17 @@ class ObjHeap(object):
         while len(c): yield heapq.heappop(c).k
         raise StopIteration
 
-class DNSServer(object):
+class DNSServer(conn.Manager):
     DNSSERVER = '8.8.8.8'
     DNSPORT   = 53
     TIMEOUT   = 3600
     RETRY     = 3
 
     def __init__(self, get_conn_mgr, dnsserver=None, cachesize=512, max_conn=10):
+        super(HttpManager, self).__init__(max_conn, 'dns')
         self.dnsserver = dnsserver or self.DNSSERVER
         self.cache, self.cachesize = ObjHeap(cachesize), cachesize
         self.get_conn_mgr = get_conn_mgr
-        self.smph, self.max_conn = coros.Semaphore(max_conn), max_conn
-
-    def size(self): return self.max_conn - self.smph.counter
-    def stat(self): return '%d/%d' % (self.size(), self.max_conn)
 
     def gethostbyname(self, name):
         if name in self.cache:
@@ -123,6 +120,7 @@ class DNSServer(object):
                     with self.get_conn_mgr(False).get_socket(
                         self.dnsserver, self.DNSPORT) as sock:
                         r = nslookup(sock, name)
+                        if not r: continue
                         self.cache[name] = (time.time(), r)
                         break
             except (EOFError, socket.error): pass
