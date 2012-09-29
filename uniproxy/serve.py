@@ -5,7 +5,7 @@
 @author: shell.xu
 '''
 import time, base64, logging
-import socks, proxy, conn, mydns, dofilter, netfilter
+import socks, proxy, conn, dnsserver, dofilter, netfilter
 from http import *
 from os import path
 from urlparse import urlparse
@@ -43,9 +43,10 @@ class ProxyServer(object):
         self.connpool, self.worklist = [], []
         self.proxy_auth = proxy.get_proxy_auth(self.config.get('users'))
         self.reload()
-        self.dns = mydns.DNSServer(self.get_conn_mgr,
-                                   dnsserver=self.config.get('dnsserver', None),
-                                   cachesize=self.config.get('dnscache', 1000))
+        self.dns = dnsserver.DNSServer(
+            self.get_conn_mgr,
+            dnsserver=self.config.get('dnsserver', None),
+            cachesize=self.config.get('dnscache', 1000))
         self.direct = conn.DirectManager(self.dns)
 
     def reload(self):
@@ -117,14 +118,16 @@ class ProxyServer(object):
         with self.with_worklist(reqinfo):
             logger.info(fmt_reqinfo(reqinfo))
             if not tout: return func(req, self.get_conn_mgr(not usesocks))
-            return with_timeout(
-                tout, func, req, self.get_conn_mgr(not usesocks))
+            try:
+                return with_timeout(
+                    tout, func, req, self.get_conn_mgr(not usesocks))
+            except Timeout, err:
+                logger.warn('connection timeout: %s' % req.uri)
 
     def handler(self, sock, addr):
         stream = sock.makefile()
         try:
             while self.do_req(recv_msg(stream, HttpRequest), addr): pass
-        except Timeout, err: logger.debug('connection timeout')
         except (EOFError, socket.error): logger.debug('network error')
         except Exception, err: logger.exception('unknown')
         sock.close()
