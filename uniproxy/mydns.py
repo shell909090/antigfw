@@ -66,23 +66,6 @@ class CLASS(DEFINE):
     HS = 4          # Hesiod [Dyer 87]
     ANY = 255       # any class
 
-class Record(object):
-    
-    def __init__(self, id, qr, opcode, auth, truncated, rd, ra, rcode):
-        self.id, self.qr, self.opcode, self.authans = id, qr, opcode, auth
-        self.truncated, self.rd, self.ra, self.rcode = truncated, rd, ra, rcode
-        self.quiz, self.ans, self.auth, self.ex = [], [], [], []
-
-    def show(self, stream):
-        print >>stream, 'quiz'
-        for name, qtype, cls in self.quiz:
-            print >>stream,  '\t', name, '\t', TYPE.lookup(qtype),\
-                '\t', CLASS.lookup(cls)
-        print >>stream, 'answer'
-        for name, type, cls, ttl, rdata in self.ans:
-            print >>stream, '\t', name, '\t', TYPE.lookup(type),\
-                '\t', CLASS.lookup(cls), '\t', ttl, '\t', rdata
-
 def packbit(r, bit, dt): return r << bit | (dt & (2**bit - 1))
 def unpack(r, bit): return r & (2**bit - 1), r >> bit
 
@@ -105,65 +88,85 @@ def unpackflag(r):
     assert rv == 0
     return qr, opcode, auth, truncated, rd, ra, rcode
 
-def packname(name):
-    return ''.join([chr(len(i))+i for i in name.split('.')]) + '\x00'
+class Record(object):
+    
+    def __init__(self, id, qr, opcode, auth, truncated, rd, ra, rcode):
+        self.id, self.qr, self.opcode, self.authans = id, qr, opcode, auth
+        self.truncated, self.rd, self.ra, self.rcode = truncated, rd, ra, rcode
+        self.quiz, self.ans, self.auth, self.ex = [], [], [], []
 
-def unpackname(s, o):
-    r = []
-    c = ord(s.read(1))
-    while c != 0:
-        if c & 0xC0 == 0xC0:
-            c = (c << 8) + ord(s.read(1)) & 0x3FFF
-            r.append(unpackname(cStringIO.StringIO(o[c:]), o))
-            break
-        else: r.append(s.read(c))
+    def show(self, stream):
+        print >>stream, 'quiz'
+        for name, qtype, cls in self.quiz:
+            print >>stream,  '\t', name, '\t', TYPE.lookup(qtype),\
+                '\t', CLASS.lookup(cls)
+        print >>stream, 'answer'
+        for name, type, cls, ttl, rdata in self.ans:
+            print >>stream, '\t', name, '\t', TYPE.lookup(type),\
+                '\t', CLASS.lookup(cls), '\t', ttl, '\t', rdata
+
+    def packname(self, name):
+        return ''.join([chr(len(i))+i for i in name.split('.')]) + '\x00'
+
+    def unpackname(self, s):
+        r = []
         c = ord(s.read(1))
-    return '.'.join(r)
+        while c != 0:
+            if c & 0xC0 == 0xC0:
+                c = (c << 8) + ord(s.read(1)) & 0x3FFF
+                r.append(self.unpackname(cStringIO.StringIO(self.buf[c:])))
+                break
+            else: r.append(s.read(c))
+            c = ord(s.read(1))
+        return '.'.join(r)
 
-def packquiz(name, qtype, cls):
-    return packname(name) + struct.pack('>HH', qtype, cls)
+    def packquiz(self, name, qtype, cls):
+        return self.packname(name) + struct.pack('>HH', qtype, cls)
 
-def unpackquiz(s, o):
-    name, r = unpackname(s, o), struct.unpack('>HH', s.read(4))
-    return name, r[0], r[1]
+    def unpackquiz(self, s):
+        name, r = self.unpackname(s), struct.unpack('>HH', s.read(4))
+        return name, r[0], r[1]
 
-# def packRR(name, type, cls, ttl, res):
-#     return packname(name) + struct.pack('>HHIH', type, cls, ttl, len(res)) + res
+    # def packRR(self, name, type, cls, ttl, res):
+    #     return self.packname(name) + \
+    #         struct.pack('>HHIH', type, cls, ttl, len(res)) + res
 
-def unpackRR(s, o):
-    n = unpackname(s, o)
-    r = struct.unpack('>HHIH', s.read(10))
-    if r[0] == TYPE.A:
-        return n, r[0], r[1], r[2], socket.inet_ntoa(s.read(r[3]))
-    elif r[0] == TYPE.CNAME:
-        return n, r[0], r[1], r[2], unpackname(s, o)
-    else: raise Exception("don't know howto handle type")
+    def unpackRR(self, s):
+        n = self.unpackname(s)
+        r = struct.unpack('>HHIH', s.read(10))
+        if r[0] == TYPE.A:
+            return n, r[0], r[1], r[2], socket.inet_ntoa(s.read(r[3]))
+        elif r[0] == TYPE.CNAME:
+            return n, r[0], r[1], r[2], self.unpackname(s)
+        else: raise Exception("don't know howto handle type")
 
-def pack_record(rec):
-    r = struct.pack(
-        '>HHHHHH', rec.id, packflag(rec.qr, rec.opcode, rec.authans,
-                                    rec.truncated, rec.rd, rec.ra, rec.rcode),
-        len(rec.quiz), len(rec.ans), len(rec.auth), len(rec.ex))
-    for i in rec.quiz: r += packquiz(*i)
-    for i in rec.ans: r += packRR(*i)
-    for i in rec.auth: r += packRR(*i)
-    for i in rec.ex: r += packRR(*i)
-    return ''.join(r)
+    def pack(self):
+        self.buf = struct.pack(
+            '>HHHHHH', self.id, packflag(self.qr, self.opcode, self.authans,
+                                         self.truncated, self.rd, self.ra, self.rcode),
+            len(self.quiz), len(self.ans), len(self.auth), len(self.ex))
+        for i in self.quiz: self.buf += self.packquiz(*i)
+        for i in self.ans: self.buf += self.packRR(*i)
+        for i in self.auth: self.buf += self.packRR(*i)
+        for i in self.ex: self.buf += self.packRR(*i)
+        return self.buf
 
-def unpack_record(dt):
-    s = cStringIO.StringIO(dt)
-    id, flag, lquiz, lans, lauth, lex = struct.unpack('>HHHHHH', s.read(12))
-    rec = Record(id, *unpackflag(flag))
-    rec.quiz = [unpackquiz(s, dt) for i in xrange(lquiz)]
-    rec.ans = [unpackRR(s, dt) for i in xrange(lans)]
-    rec.auth = [unpackRR(s, dt) for i in xrange(lauth)]
-    rec.ex = [unpackRR(s, dt) for i in xrange(lex)]
-    return rec
+    @classmethod
+    def unpack(cls, dt):
+        s = cStringIO.StringIO(dt)
+        id, flag, lquiz, lans, lauth, lex = struct.unpack('>HHHHHH', s.read(12))
+        rec = cls(id, *unpackflag(flag))
+        rec.buf = dt
+        rec.quiz = [rec.unpackquiz(s) for i in xrange(lquiz)]
+        rec.ans = [rec.unpackRR(s) for i in xrange(lans)]
+        rec.auth = [rec.unpackRR(s) for i in xrange(lauth)]
+        rec.ex = [rec.unpackRR(s) for i in xrange(lex)]
+        return rec
 
 def mkquery(*ntlist):
     rec = Record(random.randint(0, 65536), 0, OPCODE.QUERY, 0, 0, 1, 0, 0)
     for name, type in ntlist: rec.quiz.append((name, type, CLASS.IN))
-    return pack_record(rec)
+    return rec.pack()
 
 def query_by_udp(q, server, sock=None):
     if sock is None: sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -191,7 +194,7 @@ def query(name, type=TYPE.A, server='127.0.0.1', protocol='udp'):
     q = mkquery((name, type))
     func = globals().get('query_by_%s' % protocol)
     if not func: raise Exception('protocol not found')
-    return unpack_record(func(q, server))
+    return Record.unpack(func(q, server))
 
 def nslookup(name):
     r = query(name)
@@ -200,11 +203,11 @@ def nslookup(name):
 def nslookup_s(name, sock, type=TYPE.A):
     logger.debug('name: '+name)
     q = mkquery((name, type))
-    r = unpack_record(query_by_tcp(q, None, sock.makefile()))
+    r = Record.unpack(query_by_tcp(q, None, sock.makefile()))
     return [rdata for name, type, cls, ttl, rdata in r.ans if type == TYPE.A]
 
 def main():
-    r = query(sys.argv[1], server='127.0.0.1')
+    r = query(sys.argv[1], server='8.8.8.8')
     r.show(sys.stdout)
 
 if __name__ == '__main__': main()

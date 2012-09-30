@@ -44,11 +44,18 @@ socks_stat = template.Template(template='''
 <table>
   {%import time%}
   {%ti = time.time()%}
-  <tr><td>source</td><td>method</td><td>url</td><td>type</td><td>time</td></tr>
+  <tr>
+    <td>time</td><td>type</td><td>source</td><td>method</td><td>url</td>
+  </tr>
   {%for req, usesocks, addr, t in sorted(ps.worklist, key=lambda x: x[3]):%}
-    <tr><td>{%=addr[0]%}:{%=addr[1]%}</td><td>{%=req.method%}</td>
-    <td>{%=req.uri.split('?', 1)[0]%}</td><td>{%='socks' if usesocks else 'direct'%}</td>
-    <td>{%="%0.2f" % (ti-t)%}</td></tr>
+  <tr>
+    <td>{%="%0.2f" % (ti-t)%}</td>
+    <td>{%='socks' if usesocks else 'direct'%}</td>
+    <td><a href="/disconn?addr={%=addr[0]%}&port={%=addr[1]%}">
+      {%=addr[0]%}:{%=addr[1]%}</a></td>
+    <td>{%=req.method%}</td>
+    <td>{%=req.uri.split('?', 1)[0]%}</td>
+  </tr>
   {%end%}
 </table></body></html>
 ''')
@@ -62,13 +69,18 @@ def mgr_socks_stat(ps, req):
 @serve.ProxyServer.register('/reload')
 @auth_manager
 def mgr_reload(ps, req):
-    ps.reload()
     req.recv_body(req.stream)
+    ps.reload()
     return response_http(302, headers=[('location', '/')])
 
 @serve.ProxyServer.register('/quit')
 @auth_manager
-def mgr_quit(req, stream): sys.exit(-1)
+def mgr_quit(ps, req): sys.exit(-1)
+
+@serve.ProxyServer.register('/disconn')
+@auth_manager
+def mgr_disconn(ps, req):
+    form = req.read_form()
 
 domain_list = template.Template(template='''
 <html><body>
@@ -92,9 +104,7 @@ def mgr_domain_list(ps, req):
 @serve.ProxyServer.register('/add')
 @auth_manager
 def mgr_domain_add(ps, req):
-    strs = cStringIO.StringIO()
-    req.recv_body(req.stream, strs.write)
-    form = dict([i.split('=', 1) for i in strs.getvalue().split('&')])
+    form = req.read_form()
     if form.get('domain', '') and form['domain'] not in ps.filter:
         try:
             with open(ps.config['filter'][0], 'a') as fo:

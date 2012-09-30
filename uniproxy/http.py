@@ -4,7 +4,7 @@
 @date: 2012-04-26
 @author: shell.xu
 '''
-import logging
+import logging, cStringIO
 
 logger = logging.getLogger('http')
 
@@ -126,6 +126,14 @@ class HttpMessage(object):
             while d:
                 on_body(d)
                 d = stream.read(BUFSIZE)
+
+    def read_body(self, hasbody=False, raw=False):
+        strs = cStringIO.StringIO()
+        self.recv_body(self.stream, strs.write)
+        return strs.getvalue()
+
+    def read_form(self):
+        return dict([i.split('=', 1) for i in self.read_body().split('&')])
 
     def dbg_print(self):
         logger.debug(self.d + self.get_startline())
