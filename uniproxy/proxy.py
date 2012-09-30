@@ -40,9 +40,9 @@ def connect(req, sock_factory):
             req.stream.flush()
 
             fd1, fd2 = req.stream.fileno(), sock.fileno()
-            rlist = [fd1, fd2]
+            fdlist = [fd1, fd2]
             while True:
-                for rfd in select.select(rlist, [], [])[0]:
+                for rfd in select.select(fdlist, [], [])[0]:
                     try: d = os.read(rfd, BUFSIZE)
                     except OSError: d = ''
                     if not d: raise EOFError()

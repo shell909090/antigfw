@@ -51,8 +51,7 @@ socks_stat = template.Template(template='''
   <tr>
     <td>{%="%0.2f" % (ti-t)%}</td>
     <td>{%='socks' if usesocks else 'direct'%}</td>
-    <td><a href="/disconn?addr={%=addr[0]%}&port={%=addr[1]%}">
-      {%=addr[0]%}:{%=addr[1]%}</a></td>
+    <td>{%=addr[0]%}:{%=addr[1]%}</td>
     <td>{%=req.method%}</td>
     <td>{%=req.uri.split('?', 1)[0]%}</td>
   </tr>
@@ -76,11 +75,6 @@ def mgr_reload(ps, req):
 @serve.ProxyServer.register('/quit')
 @auth_manager
 def mgr_quit(ps, req): sys.exit(-1)
-
-@serve.ProxyServer.register('/disconn')
-@auth_manager
-def mgr_disconn(ps, req):
-    form = req.read_form()
 
 domain_list = template.Template(template='''
 <html><body>

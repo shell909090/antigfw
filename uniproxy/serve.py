@@ -100,17 +100,17 @@ class ProxyServer(object):
             res.sendto(req.stream)
             return res
 
-        u = urlparse(req.uri)
+        req.url = urlparse(req.uri)
         if req.method.upper() == 'CONNECT':
-            hostname, func = u.path, proxy.connect
+            hostname, func = req.url.path, proxy.connect
             tout = self.config.get('conn_tout')
         else:
-            if not u.netloc:
-                logger.info('manager %s' % (u.path,))
-                res = self.srv_urls.get(u.path, mgr_default)(self, req)
+            if not req.url.netloc:
+                logger.info('manager %s' % (req.url.path,))
+                res = self.srv_urls.get(req.url.path, mgr_default)(self, req)
                 res.sendto(req.stream)
                 return res
-            hostname, func = u.netloc, proxy.http
+            hostname, func = req.url.netloc, proxy.http
             tout = self.config.get('http_tout')
 
         usesocks = self.usesocks(hostname.split(':', 1)[0])
