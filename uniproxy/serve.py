@@ -32,6 +32,7 @@ def ssh_to_proxy(cfg, max_conn=None):
     elif 'listenport' in cfg:
         return {'type': 'http', 'addr': '127.0.0.1', 'port': cfg['listenport'][0],
                 'max_conn': max_conn, 'name': 'http:%s@%s' % (cfg['username'], cfg['sshhost'])}
+    raise Exception('unknown ssh define')
 
 class ProxyServer(object):
     proxytypemap = {'socks5': socks.SocksManager, 'http': conn.HttpManager}
