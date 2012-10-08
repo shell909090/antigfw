@@ -6,7 +6,7 @@
 '''
 import logging
 from contextlib import contextmanager
-from gevent import socket, coros
+from gevent import socket, coros, dns
 from http import *
 
 logger = logging.getLogger('conn')
