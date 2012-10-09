@@ -166,7 +166,7 @@ class Record(object):
 def mkquery(*ntlist):
     rec = Record(random.randint(0, 65536), 0, OPCODE.QUERY, 0, 0, 1, 0, 0)
     for name, type in ntlist: rec.quiz.append((name, type, CLASS.IN))
-    return rec.pack()
+    return rec
 
 def query_by_udp(q, server, sock=None):
     if sock is None: sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -191,7 +191,7 @@ def query_by_tcp(q, server, stream=None):
         if sock is not None: sock.close()
 
 def query(name, type=TYPE.A, server='127.0.0.1', protocol='udp'):
-    q = mkquery((name, type))
+    q = mkquery((name, type)).pack()
     func = globals().get('query_by_%s' % protocol)
     if not func: raise Exception('protocol not found')
     return Record.unpack(func(q, server))
@@ -202,7 +202,7 @@ def nslookup(name):
 
 def nslookup_s(name, sock, type=TYPE.A):
     logger.debug('name: '+name)
-    q = mkquery((name, type))
+    q = mkquery((name, type)).pack()
     r = Record.unpack(query_by_tcp(q, None, sock.makefile()))
     return [rdata for name, type, cls, ttl, rdata in r.ans if type == TYPE.A]
 

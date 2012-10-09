@@ -4,8 +4,8 @@
 @date: 2012-09-29
 @author: shell.xu
 '''
-import sys, time, heapq, random, getopt, logging, mydns
-from gevent import socket
+import sys, time, heapq, random, getopt, logging, gevent, mydns
+from gevent import socket, event
 
 logger = logging.getLogger('dnsserver')
 
@@ -73,10 +73,14 @@ class DNSServer(object):
     TIMEOUT   = 3600
     RETRY     = 3
 
-    def __init__(self, dnsserver=None, cachesize=512):
+    def __init__(self, dnsserver=None, cachesize=512, timeout=30):
         self.dnsserver = dnsserver or self.DNSSERVER
         self.cache, self.cachesize = ObjHeap(cachesize), cachesize
+        self.timeout = timeout
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.fakeset = set()
+        self.inquery = {}
+        gevent.spawn(self.receiver)
 
     def empty(self): self.fakeset = set()
 
@@ -121,24 +125,40 @@ class DNSServer(object):
             else: del self.cache[name]
 
         self.query(name)
-
         r = self.cache.get(name)
         if r is None: return None
         else: return random.choice(r[1])
 
     def query(self, name, type=mydns.TYPE.A):
         q = mydns.mkquery((name, type))
-        self.sock.sendto(q, (self.dnsserver, self.DNSPORT))
+        while q.id in self.inquery: q = mydns.mkquery((name, type))
+        ar = event.AsyncResult()
+        self.inquery[q.id] = (q, ar)
+
+        self.sock.sendto(q.pack(), (self.dnsserver, self.DNSPORT))
         for i in xrange(self.RETRY):
             try:
-                r = mydns.Record.unpack(self.sock.recvfrom(1024)[0])
-                ipaddrs = [rdata for name, type, cls, ttl, rdata in r.ans if type == mydns.TYPE.A]
+                r = ar.get()
+                del self.inquery[q.id]
+                ipaddrs = [rdata for n, t, cls, ttl, rdata in r.ans if t == mydns.TYPE.A]
                 if self.fakeset and any(map(lambda ip: ip in self.fakeset, ipaddrs)):
                     logger.info('drop %s in fakeset.' % ipaddrs)
                     continue
             except (EOFError, socket.error): continue
             self.cache[name] = (time.time(), ipaddrs)
             break
+
+    def receiver(self):
+        while True:
+            try:
+                while True:
+                    d = self.sock.recvfrom(1024)[0]
+                    r = mydns.Record.unpack(d)
+                    if r.id not in self.inquery:
+                        logger.warn('dns server got a record but don\'t know who care it\s id')
+                    else:
+                        self.inquery[r.id][1].set(r)
+            except Exception, err: logger.exception(err)
 
     # def on_datagram(self, data):
     #     with self.smph:
@@ -172,13 +192,11 @@ class DNSServer(object):
 def main():
     optlist, args = getopt.getopt(sys.argv[1:], 'df')
     optdict = dict(optlist)
-    if '-d' in optdict:
-        return
+    if '-d' in optdict: return
     dnsfake = ['../dnsfake']
     if '-f' in optdict: dnsfake.insert(0, optdict['-f'])
     dns = DNSServer()
     dns.loadlist(dnsfake)
-    for arg in args:
-        print arg, dns.gethostbyname(arg)
+    for arg in args: print arg, dns.gethostbyname(arg)
 
 if __name__ == '__main__': main()

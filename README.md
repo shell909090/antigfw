@@ -6,7 +6,49 @@
 
 系统分为两个部分，uniproxy和antigfw。antigfw是一套配置-启动-监管脚本，用于启动和管理ssh以及uniproxy。uniproxy负责实施代理分流，将需要代理和不需要代理的流量分离开。
 
-## HOWTO ##
+## 管理 ##
+
+如果某个域名需要被添加到翻墙列表中，修改/etc/uniproxy/gfw，一行一条记录，然后访问[http://192.168.1.8:8118/load](http://192.168.1.8:8118/load)。系统会重新读取gfw文件。另外，欢迎将你的gfw文件的补丁发送给我。
+
+PS：通常情况下，你不需要管理域名列表。因为DNS和netfilter会自动分析是境内还是境外网站。
+
+如果你想要看ssh代理的使用状况，当前有多少页面正在处理，可以访问[http://localhost:8118/](http://localhost:8118/)。
+
+# 安装 #
+
+## python安装方法 ##
+
+antigfw包含两个部分，python安装方法能安装的仅有uniproxy而已。antigfw的程序主体是一套debian打包脚本，因此无法通过python方式安装。
+
+	python setup.py install
+
+注意，如果需要向系统内安装，你需要sudo。
+
+### 启动程序 ###
+
+你需要准备一个antigfw.conf，就像uniproxy目录中提供的那样。
+
+随后，你可以到uniproxy的安装目录中，使用以下指令启动uniproxy。configure是配置文件的路径。
+
+	python main.py configure
+
+## deb打包安装 ##
+
+### deb打包 ###
+
+deb打包能够同时安装antigfw和uniproxy，比较简单的打包方法如下。最简单的打包方法，是在setup.py的目录下，执行debuild。注意，这需要你在系统中安装了devscripts包。
+
+如果你希望打出比较干净的包，可以用pbuilder或cowbuilder。具体使用方法不展开。
+
+### deb包安装 ###
+
+deb包安装比较简单，使用以下指令即可。
+
+	dpkg -i antigfw_xxx.deb
+
+具体文件名看你打出来的包叫什么。如果当前用户没有系统权限，你可能需要使用sudo。
+
+## 系统配置 ##
 
 1. 安装python-gevent和openssh-client包，并且有一个以上可以用于翻墙的ssh帐号。
 2. 在翻墙帐号上设定密钥而非密码(将你的公钥导出到~/.ssh/authorized_keys文件，具体参照[Linux](http://blog.yening.cn/2006/10/30/187.html)和[Windows](http://butian.org/knowledge/linux/1632.html))。
@@ -15,14 +57,6 @@
 5. 用/etc/init.d/antigfw restart重启服务。
 6. 在浏览器上设定服务器的8118端口为代理，类型为http代理，如：192.168.1.8:8118(其中192.168.1.8为你启动antigfw服务的机器IP)。
 7. 如果有iptables防火墙，又需要对外服务，开放8118端口。(参考：-A INPUT -p tcp -m tcp --dport 8118 -j ACCEPT)
-
-## 管理 ##
-
-如果某个域名需要被添加到翻墙列表中，修改/etc/uniproxy/gfw，一行一条记录，然后访问[http://192.168.1.8:8118/load](http://192.168.1.8:8118/load)。系统会重新读取gfw文件。另外，欢迎将你的gfw文件的补丁发送给我。
-
-PS：通常情况下，你不需要管理域名列表。因为DNS和netfilter会自动分析是境内还是境外网站。
-
-如果你想要看ssh代理的使用状况，当前有多少页面正在处理，可以访问[http://localhost:8118/](http://localhost:8118/)。
 
 # antigfw #
 
