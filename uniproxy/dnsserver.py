@@ -97,6 +97,18 @@ class DNSServer(object):
     def loadlist(self, filelist):
         for f in filelist: self.loadfile(f)
 
+    def save(self, stream):
+        for i in list(self.fakeset): stream.write(i+'\n')
+
+    def savefile(self, filepath):
+        openfile = open
+        if filepath.endswith('.gz'):
+            import gzip
+            openfile = gzip.open
+        try:
+            with openfile(filepath, 'w+') as fo: self.save(fo)
+        except (OSError, IOError): return False
+
     def gethostbyname(self, name):
         try:
             socket.inet_aton(name)

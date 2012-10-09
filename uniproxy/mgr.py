@@ -28,11 +28,12 @@ socks_stat = template.Template(template='''
   <tr>
     <td><a href="/reload">reload</a></td><td><a href="/quit">quit</a></td>
     <td><a href="/domain">domain</a></td>
+    <td><a href="/dnsfake">dnsfake</a></td>
     {%if ps.whitenf:%}<td><a href="/whitenets">whitenets</a></td>{%end%}
     {%if ps.blacknf:%}<td><a href="/blacknets">blacknets</a></td>{%end%}
   </tr>
-  <tr><td>dns cache</td><td>dns connections</td></tr>
-  <tr><td>{%=len(ps.dns.cache)%}/{%=ps.dns.cachesize%}</td><td>{%=ps.dns.stat()%}</td></tr>
+  <tr><td>dns cache</td></tr>
+  <tr><td>{%=len(ps.dns.cache)%}/{%=ps.dns.cachesize%}</td></tr>
 </table><p/>
 <table>
   <tr><td>socks</td><td>stat</td></tr>
@@ -115,6 +116,12 @@ filter.save(strs)%}
 <pre>{%=strs.getvalue()%}</pre>
 </body></html>
 ''')
+
+@serve.ProxyServer.register('/dnsfake')
+@auth_manager
+def mgr_dnsfake_list(ps, req):
+    req.recv_body(req.stream)
+    return response_http(200, body=filter_list.render({'filter': ps.dns}))
 
 @serve.ProxyServer.register('/whitenets')
 @auth_manager

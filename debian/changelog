@@ -1,3 +1,10 @@
+antigfw (1.7) unstable; urgency=low
+
+  * use fake filter to do dns, not tcp through ssh.
+  * fix bugs
+
+ -- Shell Xu <shell909090@gmail.com>  Tue, 09 Oct 2012 11:11:37 +0800
+
 antigfw (1.6) unstable; urgency=low
 
   * dns proxy server
