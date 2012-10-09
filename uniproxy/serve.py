@@ -43,11 +43,10 @@ class ProxyServer(object):
         self.config = config
         self.connpool, self.worklist = [], []
         self.proxy_auth = proxy.get_proxy_auth(self.config.get('users'))
-        self.reload()
         self.dns = dnsserver.DNSServer(
-            self.get_conn_mgr,
             dnsserver=self.config.get('dnsserver', None),
-            cachesize=self.config.get('dnscache', 1000))
+            cachesize=self.config.get('dnscache', 512))
+        self.reload()
         self.direct = conn.DirectManager(self.dns)
 
     def reload(self):
@@ -58,6 +57,8 @@ class ProxyServer(object):
                             for cfg in self.config['sshs']])
         self.connpool = [self.proxytypemap[proxy['type']](**proxy) for proxy in proxies]
 
+        self.dns.empty()
+        self.dns.loadlist(self.config.get('dnsfake'))
         self.filter = self.load_filter(dofilter.DomainFilter, 'filter')
         self.whitenf = self.load_filter(netfilter.NetFilter, 'whitenets')
         self.blacknf = self.load_filter(netfilter.NetFilter, 'blacknets')

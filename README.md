@@ -112,6 +112,7 @@ PS：通常情况下，你不需要管理域名列表。因为DNS和netfilter会
 * dnscache: DNS缓存大小，默认为512。
 * dnsproxy: 控制是否打开dnsproxy。
 * dnsport: 打开的dnsport在哪个端口。
+* dnsfake: 假dns结果的列表。
 
 ## NetFilter ##
 

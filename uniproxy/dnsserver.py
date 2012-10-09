@@ -4,7 +4,7 @@
 @date: 2012-09-29
 @author: shell.xu
 '''
-import time, heapq, random, logging, conn, mydns
+import sys, time, heapq, random, getopt, logging, mydns
 from gevent import socket
 
 logger = logging.getLogger('dnsserver')
@@ -67,17 +67,35 @@ class ObjHeap(object):
         while len(c): yield heapq.heappop(c).k
         raise StopIteration
 
-class DNSServer(conn.Manager):
+class DNSServer(object):
     DNSSERVER = '8.8.8.8'
     DNSPORT   = 53
     TIMEOUT   = 3600
     RETRY     = 3
 
-    def __init__(self, get_conn_mgr, dnsserver=None, cachesize=512, max_conn=10):
-        super(DNSServer, self).__init__(max_conn, 'dns')
+    def __init__(self, dnsserver=None, cachesize=512):
         self.dnsserver = dnsserver or self.DNSSERVER
         self.cache, self.cachesize = ObjHeap(cachesize), cachesize
-        self.get_conn_mgr = get_conn_mgr
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    def empty(self): self.fakeset = set()
+
+    def load(self, stream):
+        for line in stream:
+            if line.startswith('#'): continue
+            self.fakeset.add(line.strip())
+
+    def loadfile(self, filename):
+        openfile = open
+        if filename.endswith('.gz'):
+            import gzip
+            openfile = gzip.open
+        try:
+            with openfile(filename) as fi: self.load(fi)
+        except (OSError, IOError): return False
+
+    def loadlist(self, filelist):
+        for f in filelist: self.loadfile(f)
 
     def gethostbyname(self, name):
         try:
@@ -90,46 +108,65 @@ class DNSServer(conn.Manager):
                 return random.choice(self.cache[name][1])
             else: del self.cache[name]
 
-        for i in xrange(self.RETRY):
-            try:
-                with self.smph:
-                    with self.get_conn_mgr(False).get_socket(
-                        self.dnsserver, self.DNSPORT) as sock:
-                        r = mydns.nslookup_s(name, sock)
-                        if not r: continue
-                        self.cache[name] = (time.time(), r)
-                        break
-            except (EOFError, socket.error): pass
+        self.query(name)
 
         r = self.cache.get(name)
         if r is None: return None
         else: return random.choice(r[1])
 
-    def on_datagram(self, data):
-        with self.smph:
-            with self.get_conn_mgr(False).get_socket(self.dnsserver, self.DNSPORT) as sock:
-                stream = sock.makefile()
-                s = DNS.pack16bit(len(data))
-                stream.write(s+data)
-                stream.flush()
-
-                s = stream.read(2)
-                if len(s) == 0: raise EOFError()
-                count = DNS.unpack16bit(s)
-                reply = stream.read(count)
-                if len(reply) == 0: raise EOFError()
-        return reply
-
-    def server(self, port=53):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind(('', port))
-        logger.info('init DNS Server')
-
-        while True:
-            data, addr = sock.recvfrom(1024)
-            logger.debug('data come in from %s' % str(addr))
+    def query(self, name, type=mydns.TYPE.A):
+        q = mydns.mkquery((name, type))
+        self.sock.sendto(q, (self.dnsserver, self.DNSPORT))
+        for i in xrange(self.RETRY):
             try:
-                r = self.on_datagram(data)
-                if r is None: continue
-                sock.sendto(r, addr)
-            except Exception, err: logger.exception(err)
+                r = mydns.Record.unpack(self.sock.recvfrom(1024)[0])
+                ipaddrs = [rdata for name, type, cls, ttl, rdata in r.ans if type == mydns.TYPE.A]
+                if self.fakeset and any(map(lambda ip: ip in self.fakeset, ipaddrs)):
+                    logger.info('drop %s in fakeset.' % ipaddrs)
+                    continue
+            except (EOFError, socket.error): continue
+            self.cache[name] = (time.time(), ipaddrs)
+            break
+
+    # def on_datagram(self, data):
+    #     with self.smph:
+    #         with self.get_conn_mgr(False).get_socket(self.dnsserver, self.DNSPORT) as sock:
+    #             stream = sock.makefile()
+    #             s = DNS.pack16bit(len(data))
+    #             stream.write(s+data)
+    #             stream.flush()
+
+    #             s = stream.read(2)
+    #             if len(s) == 0: raise EOFError()
+    #             count = DNS.unpack16bit(s)
+    #             reply = stream.read(count)
+    #             if len(reply) == 0: raise EOFError()
+    #     return reply
+
+    # def server(self, port=53):
+    #     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    #     sock.bind(('', port))
+    #     logger.info('init DNS Server')
+
+    #     while True:
+    #         data, addr = sock.recvfrom(1024)
+    #         logger.debug('data come in from %s' % str(addr))
+    #         try:
+    #             r = self.on_datagram(data)
+    #             if r is None: continue
+    #             sock.sendto(r, addr)
+    #         except Exception, err: logger.exception(err)
+
+def main():
+    optlist, args = getopt.getopt(sys.argv[1:], 'df')
+    optdict = dict(optlist)
+    if '-d' in optdict:
+        return
+    dnsfake = ['../dnsfake']
+    if '-f' in optdict: dnsfake.insert(0, optdict['-f'])
+    dns = DNSServer()
+    dns.loadlist(dnsfake)
+    for arg in args:
+        print arg, dns.gethostbyname(arg)
+
+if __name__ == '__main__': main()
