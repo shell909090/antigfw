@@ -5,8 +5,8 @@ daemon   = False
 pidfile  = '/var/run/antigfw.pid'
 
 # antigfw的ssh配置，控制启动服务
-autossh  = True
-sshs	 = [
+autossh = True
+sshs	= [
     {'sockport': 7777, 'listenport': (8080, 8080),
      'username':'user', 'sshhost':'sshhost',
      'sshport':'22', 'sshprivfile':'~/.ssh/id_rsa'},
@@ -26,13 +26,14 @@ conn_tout = None
 http_tout = 600
 
 # 过滤配置
-dnsfake   = ['/etc/uniproxy/dnsfake', '/usr/share/uniproxy/dnsfake.gz']
+dnsfake   = ['/etc/uniproxy/dnsfake', '/usr/share/uniproxy/dnsfake']
 filter    = ['/etc/uniproxy/gfw', '/usr/share/uniproxy/gfw.gz']
 whitenets = None
 blacknets = ['/etc/uniproxy/white.list', '/usr/share/uniproxy/routes.list.gz',]
 
 # DNS配置
-dnsserver = '8.8.8.8'
-dnscache  = 512
-dnsproxy  = False
-dnsport   = 53
+dnsserver  = '8.8.8.8'
+dnscache   = 512
+dnsproxy   = False
+dnsport    = 53
+dnstimeout = 30

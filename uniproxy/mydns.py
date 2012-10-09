@@ -200,12 +200,6 @@ def nslookup(name):
     r = query(name)
     return [rdata for name, type, cls, ttl, rdata in r.ans if type == TYPE.A]
 
-def nslookup_s(name, sock, type=TYPE.A):
-    logger.debug('name: '+name)
-    q = mkquery((name, type)).pack()
-    r = Record.unpack(query_by_tcp(q, None, sock.makefile()))
-    return [rdata for name, type, cls, ttl, rdata in r.ans if type == TYPE.A]
-
 def main():
     r = query(sys.argv[1], server='8.8.8.8')
     r.show(sys.stdout)

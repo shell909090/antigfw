@@ -45,7 +45,8 @@ class ProxyServer(object):
         self.proxy_auth = proxy.get_proxy_auth(self.config.get('users'))
         self.dns = dnsserver.DNSServer(
             dnsserver=self.config.get('dnsserver', None),
-            cachesize=self.config.get('dnscache', 512))
+            cachesize=self.config.get('dnscache', 512),
+            timeout=self.config.get('dnstimeout', 30))
         self.reload()
         self.direct = conn.DirectManager(self.dns)
 

@@ -147,6 +147,7 @@ deb包安装比较简单，使用以下指令即可。
 * dnsproxy: 控制是否打开dnsproxy。
 * dnsport: 打开的dnsport在哪个端口。
 * dnsfake: 假dns结果的列表。
+* dnstimeout: dns超时时间，如果一直没有结果返回，就出错
 
 ## NetFilter ##
 
