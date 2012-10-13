@@ -4,7 +4,7 @@
 @date: 2010-06-04
 @author: shell.xu
 '''
-import struct, logging, conn
+import ssl, struct, logging, conn
 from contextlib import contextmanager
 from gevent import socket, coros
 
@@ -39,8 +39,11 @@ class Socks5AuthError(GeneralProxyError):
     def __init__(self, *params):
         super(Socks5AuthError, self).__init__(*params)
 
-def socks5(proxy, username=None, password=None):
+def socks5(proxy, username=None, password=None, sslop=False):
     sock = socket.socket()
+    if sslop:
+        if sslop is True: sock = ssl.wrap_socket(sock)
+        else: sock = ssl.wrap_socket(sock, certfile=sslop)
     sock.connect(proxy)
     stream = sock.makefile()
 
@@ -93,9 +96,9 @@ def socks5_connect(sock, target, rdns=True):
 class SocksManager(conn.Manager):
 
     def __init__(self, addr, port, username=None, password=None,
-                 rdns=True, max_conn=10, name=None, **kargs):
+                 rdns=True, max_conn=10, name=None, ssl=False, **kargs):
         super(SocksManager, self).__init__(max_conn, name or 'socks5:%s:%s' % (addr, port))
-        self.s = ((addr, port), username, password)
+        self.s = ((addr, port), username, password, ssl)
         self.rdns = rdns
 
     @contextmanager

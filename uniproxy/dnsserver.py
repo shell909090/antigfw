@@ -7,7 +7,7 @@
 import sys, time, heapq, random, getopt, logging, gevent
 from mydns import *
 from contextlib import contextmanager
-from gevent import socket, event, timeout
+from gevent import socket, queue, timeout
 
 logger = logging.getLogger('dnsserver')
 
@@ -132,16 +132,19 @@ class DNSServer(object):
         else: return random.choice(r[1])
 
     @contextmanager
-    def with_async_result(self, id):
-        ar = event.AsyncResult()
-        self.inquery[id] = lambda r, d: ar.set(r)
-        try: yield ar
+    def with_queue(self, id):
+        qp = queue.Queue()
+        logger.debug('add id %d' % id)
+        self.inquery[id] = lambda r, d: qp.put(r)
+        try: yield qp
         finally: del self.inquery[id]
+        logger.debug('del id %d' % id)
 
-    def get_result(self, ar):
+    def get_result(self, qp):
         for i in xrange(self.RETRY):
             try:
-                r = ar.get(timeout=self.timeout)
+                r = qp.get(timeout=self.timeout)
+                logger.debug('get response with id: %d' % r.id)
                 ipaddrs = [rdata for name, type, cls, ttl, rdata in r.ans if type == TYPE.A]
                 if self.fakeset and any(map(lambda ip: ip in self.fakeset, ipaddrs)):
                     logger.info('drop %s in fakeset.' % ipaddrs)
@@ -153,9 +156,10 @@ class DNSServer(object):
     def query(self, name, type=TYPE.A):
         q = mkquery((name, type))
         while q.id in self.inquery: q = mkquery((name, type))
-        with self.with_async_result(q.id) as ar:
+        logger.debug('request dns %s with id %d' % (name, q.id))
+        with self.with_queue(q.id) as qp:
             self.sock.sendto(q.pack(), (self.dnsserver, self.DNSPORT))
-            ipaddrs = self.get_result(ar)
+            ipaddrs = self.get_result(qp)
         if ipaddrs: self.cache[name] = (time.time(), ipaddrs)
 
     def receiver(self):
@@ -166,6 +170,7 @@ class DNSServer(object):
                     r = Record.unpack(d)
                     if r.id not in self.inquery:
                         logger.warn('dns server got a record but don\'t know who care it\'s id')
+                        logger.debug('this record id is: %d' % r.id)
                     else: self.inquery[r.id](r, d)
             except Exception, err: logger.exception(err)
 

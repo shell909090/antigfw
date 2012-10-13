@@ -27,7 +27,6 @@ socks_stat = template.Template(template='''
 <table>
   <tr>
     <td><a href="/reload">reload</a></td><td><a href="/quit">quit</a></td>
-    <td><a href="/domain">domain</a></td>
     <td><a href="/dnsfake">dnsfake</a></td>
     {%if ps.whitenf:%}<td><a href="/whitenets">whitenets</a></td>{%end%}
     {%if ps.blacknf:%}<td><a href="/blacknets">blacknets</a></td>{%end%}
@@ -76,37 +75,6 @@ def mgr_reload(ps, req):
 @serve.ProxyServer.register('/quit')
 @auth_manager
 def mgr_quit(ps, req): sys.exit(-1)
-
-domain_list = template.Template(template='''
-<html><body>
-<form action="/add" method="POST">
-  <input name="domain"/>
-  <input type="submit" name="submit"/>
-</form>
-{%import cStringIO%}
-{%strs = cStringIO.StringIO()
-ps.filter.save(strs)%}
-<pre>{%=strs.getvalue()%}</pre>
-</body></html>
-''')
-
-@serve.ProxyServer.register('/domain')
-@auth_manager
-def mgr_domain_list(ps, req):
-    req.recv_body(req.stream)
-    return response_http(200, body=domain_list.render({'ps': ps}))
-
-@serve.ProxyServer.register('/add')
-@auth_manager
-def mgr_domain_add(ps, req):
-    form = req.read_form()
-    if form.get('domain', '') and form['domain'] not in ps.filter:
-        try:
-            with open(ps.config['filter'][0], 'a') as fo:
-                fo.write(form['domain'] + '\n')
-        except: pass
-        ps.filter.add(form['domain'])
-    return response_http(302, headers=[('location', '/domain')])
 
 filter_list = template.Template(template='''
 <html><body>

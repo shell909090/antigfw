@@ -27,7 +27,6 @@ http_tout = 600
 
 # 过滤配置
 dnsfake   = ['/etc/uniproxy/dnsfake', '/usr/share/uniproxy/dnsfake']
-filter    = ['/etc/uniproxy/gfw', '/usr/share/uniproxy/gfw.gz']
 whitenets = None
 blacknets = ['/etc/uniproxy/white.list', '/usr/share/uniproxy/routes.list.gz',]
 

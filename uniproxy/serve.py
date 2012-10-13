@@ -5,7 +5,7 @@
 @author: shell.xu
 '''
 import time, base64, logging
-import socks, proxy, conn, dnsserver, dofilter, netfilter
+import socks, proxy, conn, dnsserver, netfilter
 from http import *
 from os import path
 from urlparse import urlparse
@@ -60,7 +60,6 @@ class ProxyServer(object):
 
         self.dns.empty()
         self.dns.loadlist(self.config.get('dnsfake'))
-        self.filter = self.load_filter(dofilter.DomainFilter, 'filter')
         self.whitenf = self.load_filter(netfilter.NetFilter, 'whitenets')
         self.blacknf = self.load_filter(netfilter.NetFilter, 'blacknets')
 
@@ -88,7 +87,6 @@ class ProxyServer(object):
         return min(self.connpool, key=lambda x: x.size())
 
     def usesocks(self, hostname):
-        if self.filter and hostname in self.filter: return True
         if self.whitenf or self.blacknf:
             addr = self.dns.gethostbyname(hostname)
             if addr is None: return False
