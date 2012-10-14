@@ -8,10 +8,6 @@
 
 ## 管理 ##
 
-如果某个域名需要被添加到翻墙列表中，修改/etc/uniproxy/gfw，一行一条记录，然后访问[http://192.168.1.8:8118/load](http://192.168.1.8:8118/load)。系统会重新读取gfw文件。另外，欢迎将你的gfw文件的补丁发送给我。
-
-PS：通常情况下，你不需要管理域名列表。因为DNS和netfilter会自动分析是境内还是境外网站。
-
 如果你想要看ssh代理的使用状况，当前有多少页面正在处理，可以访问[http://localhost:8118/](http://localhost:8118/)。
 
 # 安装 #
@@ -55,7 +51,7 @@ deb包安装比较简单，使用以下指令即可。
 3. 设定/etc/default/antigfw文件，修改其中的sshs记录。
 4. 完成修改后，将上述配置中的daemon由False改为True。
 5. 用/etc/init.d/antigfw restart重启服务。
-6. 在浏览器上设定服务器的8118端口为代理，类型为http代理，如：192.168.1.8:8118(其中192.168.1.8为你启动antigfw服务的机器IP)。
+6. 在浏览器上设定服务器的8118端口为代理，类型为http代理，如：localhost:8118(其中localhost为你启动antigfw服务的机器IP)。
 7. 如果有iptables防火墙，又需要对外服务，开放8118端口。(参考：-A INPUT -p tcp -m tcp --dport 8118 -j ACCEPT)
 
 # antigfw #
@@ -162,17 +158,6 @@ IP地址过滤系统，主要是whitenets和blacknets上使用。具体格式为
 
 * socks: 当max_conn不为0，并且sshs有配置的时候，会自动为每个sshs产生一条proxy记录。
 * max\_conn: 用于自动配置socks中的max\_conn默认值。
-
-## gfw_tester ##
-
-用于自动测试gfw文件中的域名是否被墙。
-
-	gfw_tester [-f] gfw [-d]
-
-* -f: 直接在文件上进行过滤，所有可以访问的域名会被自动删除。
-* -d: 无视gfw参数，直接下载网络上的最新gfw列表，在stdout中输出。
-
-注意：这个测试程序只测试首页是否连通，因此有很多网站可能无法发现被墙，从而导致误删。例如google.com。
 
 ## dns2tcp ##
 
