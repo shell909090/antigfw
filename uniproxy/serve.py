@@ -59,6 +59,10 @@ class ProxyServer(object):
             proxies.extend([ssh_to_proxy(cfg, self.config['max_conn'])
                             for cfg in self.config['sshs']])
         self.connpool = [self.proxytypemap[proxy['type']](**proxy) for proxy in proxies]
+        # self.upstream = None
+        # if self.config.get('upstream'):
+        #     self.upstream = gae.GAE(**self.config.get('upstream'))
+        self.upstream = gae.GAE('http://localhost:8888/fakeurl')
 
         self.dns.empty()
         self.dns.loadlist(self.config.get('dnsfake'))
@@ -88,9 +92,10 @@ class ProxyServer(object):
         if direct: return self.direct
         return min(self.connpool, key=lambda x: x.size())
 
-    def usesocks(self, hostname):
+    def usesocks(self, hostname, req):
         if self.whitenf or self.blacknf:
             addr = self.dns.gethostbyname(hostname)
+            if req: req.address = addr
             if addr is None: return False
             logger.debug('hostname: %s, addr: %s' % (hostname, addr))
             if self.whitenf and addr in self.whitenf: return True
@@ -102,31 +107,34 @@ class ProxyServer(object):
         if authres is not None:
             res.sendto(req.stream)
             return res
-
+        reqconn = req.method.upper() == 'CONNECT'
         req.url = urlparse(req.uri)
-        if req.method.upper() == 'CONNECT':
-            hostname, func = req.url.path, proxy.connect
-            tout = self.config.get('conn_tout')
-        else:
-            if not req.url.netloc:
-                logger.info('manager %s' % (req.url.path,))
-                res = self.srv_urls.get(req.url.path, mgr_default)(self, req)
-                res.sendto(req.stream)
-                return res
 
-            res = gae.application(req)
+        if not reqconn and not req.url.netloc:
+            logger.info('manager %s' % (req.url.path,))
+            res = self.srv_urls.get(req.url.path, mgr_default)(self, req)
+            res.sendto(req.stream)
+            return res
+
+        if reqconn:
+            hostname, func, tout = (
+                req.url.path, proxy.connect, self.config.get('conn_tout'))
+        else:
+            hostname, func, tout = (
+                req.url.netloc, proxy.http, self.config.get('http_tout'))
+        usesocks = self.usesocks(hostname.split(':', 1)[0], req)
+        reqinfo = (req, usesocks, addr, time.time())
+
+        if usesocks and self.upstream:
+            res = self.upstream.handler(req)
             if res is not None:
                 res.sendto(req.stream)
                 return res
 
-            hostname, func = req.url.netloc, proxy.http
-            tout = self.config.get('http_tout')
-
-        usesocks = self.usesocks(hostname.split(':', 1)[0])
-        reqinfo = (req, usesocks, addr, time.time())
         with self.with_worklist(reqinfo):
             logger.info(fmt_reqinfo(reqinfo))
-            if not tout: return func(req, self.get_conn_mgr(not usesocks))
+            if not tout:
+                return func(req, self.get_conn_mgr(not usesocks))
             try:
                 return with_timeout(
                     tout, func, req, self.get_conn_mgr(not usesocks))
