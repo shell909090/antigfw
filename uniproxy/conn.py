@@ -51,7 +51,7 @@ def http_proxy(proxy, target, username=None, password=None):
 
     req = HttpRequest('CONNECT', '%s:%d' % target, 'HTTP/1.1')
     if username and password:
-        req.add_header('proxy-authorization',
+        req.add_header('Proxy-Authorization',
                        base64.b64encode('Basic %s:%s' % (username, password)))
     req.send_header(stream)
 

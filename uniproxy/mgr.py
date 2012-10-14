@@ -14,7 +14,7 @@ def auth_manager(func):
     def realfunc(ps, req):
         managers = ps.config['managers']
         if not managers: return func(ps, req)
-        auth = req.get_header('authorization')
+        auth = req.get_header('Authorization')
         if auth:
             username, password = base64.b64decode(auth[6:]).split(':')
             if managers.get(username, None) == password: return func(ps, req)
@@ -70,7 +70,7 @@ def mgr_socks_stat(ps, req):
 def mgr_reload(ps, req):
     req.recv_body(req.stream)
     ps.reload()
-    return response_http(302, headers=[('location', '/')])
+    return response_http(302, headers=[('Location', '/')])
 
 @serve.ProxyServer.register('/quit')
 @auth_manager

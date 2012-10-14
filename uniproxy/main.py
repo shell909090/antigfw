@@ -44,7 +44,7 @@ def main(*cfgs):
     try:
         if config.get('dnsproxy'):
             gevent.spawn(ps.dns.server, config.get('dnsport', 53))
-        try: server.StreamServer(addr, ps.handler).serve_forever()
+        try: server.StreamServer(addr, ps.http_handler).serve_forever()
         except KeyboardInterrupt: pass
     finally: ps.final()
 

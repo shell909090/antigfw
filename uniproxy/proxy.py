@@ -15,9 +15,9 @@ VERBOSE = False
 def get_proxy_auth(users):
     def all_pass(req): return None
     def proxy_auth(req):
-        auth = req.get_header('proxy-authorization')
+        auth = req.get_header('Proxy-Authorization')
         if auth:
-            req.headers = [(k, v) for k, v in req.headers if k != 'proxy-authorization']
+            req.headers = [(k, v) for k, v in req.headers if k != 'Proxy-Authorization']
             username, password = base64.b64decode(auth[6:]).split(':')
             if users.get(username, None) == password: return None
         logging.info('proxy authenticate failed')
@@ -55,7 +55,7 @@ def http(req, sock_factory):
     hostname, port, uri = parse_target(req.uri)
     reqx = copy.copy(req)
     reqx.uri = uri
-    reqx.headers = [(h, v) for h, v in req.headers if not h.startswith('proxy')]
+    reqx.headers = [(h, v) for h, v in req.headers if not h.startswith('Proxy')]
     with sock_factory.get_socket(hostname, port) as sock:
         stream1 = sock.makefile()
 
@@ -70,8 +70,8 @@ def http(req, sock_factory):
         hasbody = req.method.upper() != 'HEAD' and res.code not in CODE_NOBODY
         res.recv_body(stream1, req.stream.write, hasbody, raw=True)
         req.stream.flush()
-    res.connection = req.get_header('proxy-connection', '').lower() == 'keep-alive'
+    res.connection = req.get_header('Proxy-Connection', '').lower() == 'keep-alive'
     logger.debug('%s with %d in %0.2f, %s' % (
             req.uri.split('?', 1)[0], res.code, time.time() - t,
-            req.get_header('proxy-connection', 'closed').lower()))
+            req.get_header('Proxy-Connection', 'closed').lower()))
     return res

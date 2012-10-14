@@ -125,7 +125,7 @@ class ProxyServer(object):
             except Timeout, err:
                 logger.warn('connection timeout: %s' % req.uri)
 
-    def handler(self, sock, addr):
+    def http_handler(self, sock, addr):
         stream = sock.makefile()
         try:
             while self.do_req(recv_msg(stream, HttpRequest), addr): pass
