@@ -12,6 +12,8 @@ from urlparse import urlparse
 from contextlib import contextmanager
 from gevent import socket, dns, with_timeout, Timeout
 
+import gae
+
 __all__ = ['ProxyServer',]
 
 logger = logging.getLogger('server')
@@ -111,6 +113,12 @@ class ProxyServer(object):
                 res = self.srv_urls.get(req.url.path, mgr_default)(self, req)
                 res.sendto(req.stream)
                 return res
+
+            res = gae.application(req)
+            if res is not None:
+                res.sendto(req.stream)
+                return res
+
             hostname, func = req.url.netloc, proxy.http
             tout = self.config.get('http_tout')
 
