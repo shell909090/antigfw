@@ -62,13 +62,13 @@ socks_stat = template.Template(template='''
 @serve.ProxyServer.register('/')
 @auth_manager
 def mgr_socks_stat(ps, req):
-    req.recv_body(req.stream)
+    req.read_body()
     return response_http(200, body=socks_stat.render({'ps': ps}))
 
 @serve.ProxyServer.register('/reload')
 @auth_manager
 def mgr_reload(ps, req):
-    req.recv_body(req.stream)
+    req.read_body()
     ps.reload()
     return response_http(302, headers=[('Location', '/')])
 
@@ -88,17 +88,17 @@ filter.save(strs)%}
 @serve.ProxyServer.register('/dnsfake')
 @auth_manager
 def mgr_dnsfake_list(ps, req):
-    req.recv_body(req.stream)
+    req.read_body()
     return response_http(200, body=filter_list.render({'filter': ps.dns}))
 
 @serve.ProxyServer.register('/whitenets')
 @auth_manager
 def mgr_netfilter_list(ps, req):
-    req.recv_body(req.stream)
+    req.read_body()
     return response_http(200, body=filter_list.render({'filter': ps.whitenf}))
 
 @serve.ProxyServer.register('/blacknets')
 @auth_manager
 def mgr_netfilter_list(ps, req):
-    req.recv_body(req.stream)
+    req.read_body()
     return response_http(200, body=filter_list.render({'filter': ps.blacknf}))
