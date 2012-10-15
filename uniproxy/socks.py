@@ -39,12 +39,8 @@ class Socks5AuthError(GeneralProxyError):
     def __init__(self, *params):
         super(Socks5AuthError, self).__init__(*params)
 
-def socks5(proxy, username=None, password=None, sslop=False):
-    sock = socket.socket()
-    if sslop:
-        if sslop is True: sock = ssl.wrap_socket(sock)
-        else: sock = ssl.wrap_socket(sock, certfile=sslop)
-    sock.connect(proxy)
+def socks5_create(sock, proxyaddr, username=None, password=None):
+    sock.connect(proxyaddr)
     stream = sock.makefile()
 
     # hand shake request
@@ -68,7 +64,6 @@ def socks5(proxy, username=None, password=None, sslop=False):
         logger.debug('authenticated with password')
     elif chosenauth[1] == "\xFF": raise Socks5AuthError(2)
     else: raise GeneralProxyError(1)
-    return sock
 
 def socks5_connect(sock, target, rdns=True):
     stream = sock.makefile()
@@ -95,29 +90,34 @@ def socks5_connect(sock, target, rdns=True):
     logger.debug('socks connected with %s:%s' % target)
     return boundaddr, boundport
 
+def socks5(proxyaddr, username=None, password=None, rdns=True):
+    def reciver(func):
+        def creator(family=socket.AF_INET, type=socket.SOCK_STREAM, proto=0):
+            sock = func(family, type, proto)
+            socks5_create(sock, proxyaddr, username, password)
+            def newconn(addr): socks5_connect(sock, addr, rdns)
+            sock.connect, sock.connect_ex = newconn, newconn
+            return sock
+        return creator
+    return reciver
+
+def ssl_socket(certfile=None):
+    def reciver(func):
+        def creator(family=socket.AF_INET, type=socket.SOCK_STREAM, proto=0):
+            sock = func(family, type, proto)
+            if not certfile: return ssl.wrap_socket(sock)
+            else: return ssl.wrap_socket(sock, certfile=cretfile)
+        return creator
+    return reciver
+
 class SocksManager(conn.Manager):
 
     def __init__(self, addr, port, username=None, password=None,
                  rdns=True, max_conn=10, name=None, ssl=False, **kargs):
         super(SocksManager, self).__init__(max_conn, name or 'socks5:%s:%s' % (addr, port))
-        self.s = ((addr, port), username, password, ssl)
-        self.rdns = rdns
-
-    @contextmanager
-    def get_socket(self, addr, port):
-        with self.smph:
-            logger.debug('socks5:%s:%d %d/%d allocated.' % (
-                    self.s[0][0], self.s[0][1], self.size(), self.max_conn))
-            sock = socks5(*self.s)
-            try: bind = socks5_connect(sock, (addr, port), self.rdns)
-            except:
-                sock.close()
-                raise
-            try: yield sock
-            finally:
-                if sock: sock.close()
-                logger.debug('socks5:%s:%d %d/%d, released.' % (
-                        self.s[0][0], self.s[0][1], self.size(), self.max_conn))
+        if ssl is True: self.creator = ssl_socket()(self.creator)
+        elif ssl: self.creator = ssl_socket(ssl)(self.creator)
+        self.creator = socks5((addr, port), username, password, rdns)(self.creator)
 
 def str2addr(s):
     r = s.split(':')
