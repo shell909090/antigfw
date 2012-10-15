@@ -68,7 +68,7 @@ def capitalize_httptitle(k):
     return '-'.join([t.capitalize() for t in k.split('-')])
 
 class HttpMessage(object):
-    def __init__(self): self.headers = []
+    def __init__(self): self.headers, self.body = [], None
 
     def add_header(self, k, v):
         self.headers.append([k, v])
@@ -134,6 +134,13 @@ class HttpMessage(object):
     def read_form(self):
         return dict([i.split('=', 1) for i in self.read_body().split('&')])
 
+    def sendto(self, stream, *p, **kw):
+        self.send_header(stream)
+        if self.body is None: return
+        elif callable(self.body):
+            for d in self.body(*p, **kw): stream.write(d)
+        else: stream.write(self.body)
+
     def dbg_print(self):
         logger.debug(self.d + self.get_startline())
         for k, v in self.headers: logger.debug('%s%s: %s' % (self.d, k, v))
@@ -161,12 +168,6 @@ class HttpResponse(HttpMessage):
     def get_startline(self):
         return ' '.join((self.version, str(self.code), self.phrase))
 
-    def sendto(self, stream, *p, **kw):
-        self.send_header(stream)
-        if callable(self.body):
-            for d in self.body(*p, **kw): stream.write(d)
-        else: stream.write(self.body)
-
 def recv_msg(stream, cls):
     line = stream.readline().strip()
     if len(line) == 0: raise EOFError()
@@ -178,15 +179,24 @@ def recv_msg(stream, cls):
     msg.recv_header(stream)
     return msg
 
+def request_http(url, method=None, version=None, headers=None, data=None):
+    if not method: method = 'GET' if data is None else 'POST'
+    if not version: version = 'HTTP/1.1'
+    if not headers: headers = []
+    req = HttpRequest(method, uri, version)
+    req.headers, req.body = headers, data
+    if req.body and isinstance(req.body, basestring):
+        req.set_header('Content-Length', str(len(req.body)))
+    return req
+
 def response_http(code, phrase=None, version=None, headers=None,
                   cache=0, body=None):
     if not phrase: phrase = DEFAULT_PAGES[code][0]
     if not version: version = 'HTTP/1.1'
     res = HttpResponse(version, code, phrase)
     if body and isinstance(body, basestring):
-        res.set_header('content-length', str(len(body)))
+        res.set_header('Content-Length', str(len(body)))
     if headers:
         for k, v in headers: res.set_header(k, v)
-    res.cache = cache
-    res.body = body
+    res.cache, res.body = cache, body
     return res

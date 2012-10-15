@@ -62,7 +62,7 @@ class ProxyServer(object):
         # self.upstream = None
         # if self.config.get('upstream'):
         #     self.upstream = gae.GAE(**self.config.get('upstream'))
-        self.upstream = gae.GAE('http://localhost:8888/fakeurl')
+        self.upstream = gae.GAE('http://localhost:8088/fakeurl', 'XOR', '1234567890')
 
         self.dns.empty()
         self.dns.loadlist(self.config.get('dnsfake'))
