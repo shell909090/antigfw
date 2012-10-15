@@ -32,11 +32,13 @@ def parse_target(url):
 def connect(req, sock_factory):
     hostname, port, uri = parse_target(req.url)
     try:
-        with sock_factory.get_socket(hostname, port) as sock:
+        with sock_factory.socket() as sock:
+            sock.connect((hostname, port))
             res = HttpResponse(req.version, 200, 'OK')
             res.send_header(req.stream)
             req.stream.flush()
 
+            # WARN: maybe dangerous to ssl
             fd1, fd2 = req.stream.fileno(), sock.fileno()
             fdlist = [fd1, fd2]
             while True:
@@ -54,7 +56,8 @@ def http(req, sock_factory):
     reqx = copy.copy(req)
     reqx.uri = uri
     reqx.headers = [(h, v) for h, v in req.headers if not h.startswith('Proxy')]
-    with sock_factory.get_socket(hostname, port) as sock:
+    with sock_factory.socket() as sock:
+        sock.connect((hostname, port))
         stream1 = sock.makefile()
 
         if VERBOSE: req.dbg_print()
