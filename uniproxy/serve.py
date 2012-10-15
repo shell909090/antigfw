@@ -17,7 +17,7 @@ __all__ = ['ProxyServer',]
 logger = logging.getLogger('server')
 
 def mgr_default(self, req):
-    req.recv_body(req.stream)
+    req.read_body()
     return response_http(404, body='Page not found')
 
 def fmt_reqinfo(info):

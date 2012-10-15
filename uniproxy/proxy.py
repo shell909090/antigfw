@@ -61,14 +61,14 @@ def http(req, sock_factory):
 
         if VERBOSE: req.dbg_print()
         reqx.send_header(stream1)
-        reqx.recv_body(req.stream, stream1.write, raw=True)
+        for d in reqx.read_chunk(req.stream, raw=True): stream1.write(d)
         stream1.flush()
 
         res = recv_msg(stream1, HttpResponse)
         if VERBOSE: res.dbg_print()
         res.send_header(req.stream)
         hasbody = req.method.upper() != 'HEAD' and res.code not in CODE_NOBODY
-        res.recv_body(stream1, req.stream.write, hasbody, raw=True)
+        for d in res.read_chunk(stream1, hasbody, True): req.stream.write(d)
         req.stream.flush()
     res.connection = req.get_header('Proxy-Connection', '').lower() == 'keep-alive'
     logger.debug('%s with %d in %0.2f, %s' % (
