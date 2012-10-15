@@ -179,7 +179,7 @@ def recv_msg(stream, cls):
     msg.recv_header(stream)
     return msg
 
-def request_http(url, method=None, version=None, headers=None, data=None):
+def request_http(uri, method=None, version=None, headers=None, data=None):
     if not method: method = 'GET' if data is None else 'POST'
     if not version: version = 'HTTP/1.1'
     if not headers: headers = []

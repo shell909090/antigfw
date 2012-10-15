@@ -6,11 +6,11 @@
 '''
 import time, base64, logging
 import socks, proxy, conn, dnsserver, netfilter
-from http import *
 from os import path
 from urlparse import urlparse
 from contextlib import contextmanager
 from gevent import socket, dns, with_timeout, Timeout
+from http import *
 
 import gae
 
@@ -118,7 +118,7 @@ class ProxyServer(object):
 
         if reqconn:
             hostname, func, tout = (
-                req.url.path, proxy.connect, self.config.get('conn_tout'))
+                req.uri, proxy.connect, self.config.get('conn_tout'))
         else:
             hostname, func, tout = (
                 req.url.netloc, proxy.http, self.config.get('http_tout'))

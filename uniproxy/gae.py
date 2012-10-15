@@ -4,9 +4,13 @@
 @date: 2012-10-14
 @author: shell.xu
 '''
-import copy, zlib, json, base64, random, cStringIO
+import copy, zlib, json, base64, random, logging, cStringIO
+from urlparse import urlparse
+from gevent import ssl, socket
 from http import *
 import hoh
+
+logger = logging.getLogger('gae')
 
 def fakedict(s):
     r = []
@@ -23,11 +27,23 @@ def msg_decoder(d, method, key):
 
 class GAE(object):
     def __init__(self, baseurl, algoname, key):
-        self.baseurl, self.algoname, self.key = baseurl, algoname, key
+        url = urlparse(baseurl)
+        self.ssl = url.scheme == 'https'
+        port = url.port or (443 if url.scheme.lower() == 'https' else 80)
+        self.addr, self.path = (url.hostname, port), url.path
+        self.algoname, self.key = algoname, key
 
     def client(self, query):
-        req = request_http(self.baseurl + '?' + query)
-        req.sendto()
+        req = request_http(self.path + '?' + query)
+        sock = socket.socket()
+        sock.connect(self.addr)
+        if self.ssl: sock = ssl.wrap_socket(sock)
+        stream = sock.makefile()
+        req.sendto(stream)
+        stream.flush()
+        res = recv_msg(stream, HttpResponse)
+        res.dbg_print()
+        print res.read_body()
 
     def handler(self, req):
         if req.method.upper() == 'CONNECT': return None
@@ -35,10 +51,12 @@ class GAE(object):
         d = zlib.compress(d, 9)
         d = hoh.get_crypt(self.algoname, self.key)[0](d)
         d = base64.b64encode(d, '_%').strip('=')
-        d = fakedict(d)
+        self.client(fakedict(d))
         print d
 
 def main():
+    import main
+    main.initlog(logging.DEBUG)
     gae = GAE('http://localhost:8088/fakeurl', 'XOR', '1234567890')
     req = HttpRequest('GET', 'http://www.sina.com.cn', 'HTTP/1.1')
     req.stream = None

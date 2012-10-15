@@ -4,7 +4,7 @@
 @date: 2012-10-14
 @author: shell.xu
 '''
-import zlib, json, base64
+import zlib, json, base64, logging
 import hoh
 
 config = {
@@ -21,12 +21,23 @@ def application(env, start_response):
     d = base64.b64decode(d + '==', '_%')
     d = hoh.get_crypt(config['method'], config['key'])[1](d)
     d = zlib.decompress(d)
-    req = hoh.loadreq(d)
-    print req.method, req.uri, req.version
-    print req.headers
+    req, options = hoh.loadreq(d)
+    req.dbg_print()
     start_response('200 OK', [('Content-Type', 'text')])
     yield ''
 
+def initlog(lv, logfile=None):
+    rootlog = logging.getLogger()
+    if logfile: handler = logging.FileHandler(logfile)
+    else: handler = logging.StreamHandler()
+    handler.setFormatter(
+        logging.Formatter(
+            '%(asctime)s,%(msecs)03d %(name)s[%(levelname)s]: %(message)s',
+            '%H:%M:%S'))
+    rootlog.addHandler(handler)
+    rootlog.setLevel(lv)
+
 if __name__ == '__main__':
     from gevent.pywsgi import WSGIServer
+    initlog(logging.DEBUG)
     WSGIServer(('', 8088), application).serve_forever()

@@ -5,7 +5,6 @@
 @author: shell.xu
 '''
 import os, copy, time, logging
-from urlparse import urlparse
 from gevent import select
 from http import *
 
@@ -24,15 +23,14 @@ def get_proxy_auth(users):
         return response_http(407, headers=[('Proxy-Authenticate', 'Basic realm="users"')])
     return proxy_auth if users else all_pass
 
-def parse_target(uri):
-    u = urlparse(uri)
-    r = (u.netloc or u.path).split(':', 1)
+def parse_target(url):
+    r = (url.netloc or url.path).split(':', 1)
     if len(r) > 1: port = int(r[1])
     else: port = 443 if u.scheme.lower() == 'https' else 80
     return r[0], port, '%s?%s' % (u.path, u.query) if u.query else u.path
 
 def connect(req, sock_factory):
-    hostname, port, uri = parse_target(req.uri)
+    hostname, port, uri = parse_target(req.url)
     try:
         with sock_factory.get_socket(hostname, port) as sock:
             res = HttpResponse(req.version, 200, 'OK')
@@ -52,7 +50,7 @@ def connect(req, sock_factory):
 
 def http(req, sock_factory):
     t = time.time()
-    hostname, port, uri = parse_target(req.uri)
+    hostname, port, uri = parse_target(req.url)
     reqx = copy.copy(req)
     reqx.uri = uri
     reqx.headers = [(h, v) for h, v in req.headers if not h.startswith('Proxy')]
