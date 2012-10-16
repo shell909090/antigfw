@@ -105,11 +105,11 @@ class ProxyServer(object):
     def do_req(self, req, addr):
         authres = self.proxy_auth(req)
         if authres is not None:
-            res.sendto(req.stream)
-            return res
+            authres.sendto(req.stream)
+            return authres
         reqconn = req.method.upper() == 'CONNECT'
-        req.url = urlparse(req.uri)
 
+        req.url = urlparse(req.uri)
         if not reqconn and not req.url.netloc:
             logger.info('manager %s' % (req.url.path,))
             res = self.srv_urls.get(req.url.path, mgr_default)(self, req)

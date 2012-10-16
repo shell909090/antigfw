@@ -4,7 +4,7 @@
 @date: 2012-04-27
 @author: shell.xu
 '''
-import os, copy, time, logging
+import os, copy, time, base64, logging
 from gevent import select
 from http import *
 
