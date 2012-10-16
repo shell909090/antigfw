@@ -204,7 +204,9 @@ def response_http(code, phrase=None, version=None, headers=None,
 def http_client(req, addr, creator):
     sock = creator()
     sock.connect(addr)
-    stream = sock.makefile()
-    req.sendto(stream)
-    stream.flush()
-    return recv_msg(stream, HttpResponse)
+    try:
+        stream = sock.makefile()
+        req.sendto(stream)
+        stream.flush()
+        return recv_msg(stream, HttpResponse)
+    finally: sock.close()

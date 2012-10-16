@@ -27,6 +27,8 @@ def msg_decoder(d, method, key):
     return zlib.decompress(d)
 
 class GAE(object):
+    MAXGETSIZE = 512
+
     def __init__(self, baseurl, algoname, key):
         self.baseurl, url = baseurl, urlparse(baseurl)
         self.socket = socket.socket
@@ -39,7 +41,12 @@ class GAE(object):
         return '%s %s %s' % (req.method, req.uri.split('?', 1)[0], 'gae')
 
     def client(self, query):
-        req = request_http(self.path + '?' + query)
+        if query >= self.MAXGETSIZE:
+            req = request_http(self.path)
+            req.body = query
+            req.set_header('Context-Length', str(len(query)))
+            req.set_header('Context-Type', 'multipart/form-data')
+        else: req = request_http(self.path + '?' + query)
         res = http_client(req, self.addr, self.socket)
         return res.read_body()
 

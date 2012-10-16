@@ -8,23 +8,19 @@ import zlib, copy, json, base64, logging
 from urlparse import urlparse
 from http import *
 from hoh import *
+from config import *
 
 from gevent.pywsgi import WSGIServer
 from gevent import socket
 
-config = {
-    'method': 'XOR', 'key': '1234567890'
-    }
-
 def application(env, start_response):
-    # print env['REQUEST_METHOD'], env['PATH_INFO'],
-    if env['REQUEST_METHOD'] != 'GET':
-        # print env['wsgi.input'].read()
+    if env['REQUEST_METHOD'] == 'GET': d = env['QUERY_STRING']
+    elif env['REQUEST_METHOD'] == 'POST': d = env['wsgi.input'].read()
+    else:
         start_response('404 Not Found')
         return
 
-    d = env['QUERY_STRING'].replace('&', '').replace('=', '')
-    d = base64.b64decode(d + '==', '_%')
+    d = base64.b64decode(d.replace('&', '').replace('=', '') + '==', '_%')
     d = get_crypt(config['method'], config['key'])[1](d)
     req, options = loadmsg(zlib.decompress(d), HttpRequest)
 
@@ -36,7 +32,7 @@ def application(env, start_response):
         (req.url.netloc, req.url.port or (443 if req.url.scheme == 'https' else 80)),
         socket.socket)
     
-    start_response('200 OK', [('Content-Type', 'text')])
+    start_response('200 OK', [('Content-Type', 'application/mp4')])
     d = zlib.compress(dumpres(res), 9)
     yield get_crypt(config['method'], config['key'])[0](d)
 
