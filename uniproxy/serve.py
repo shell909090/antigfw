@@ -98,8 +98,8 @@ class ProxyServer(object):
     def do_req(self, req, addr):
         authres = self.proxy_auth(req)
         if authres is not None:
-            res.sendto(req.stream)
-            return res
+            authres.sendto(req.stream)
+            return authres
 
         req.url = urlparse(req.uri)
         if req.method.upper() == 'CONNECT':
