@@ -29,6 +29,7 @@ http_tout = 600
 dnsfake   = ['/etc/uniproxy/dnsfake', '/usr/share/uniproxy/dnsfake']
 whitenets = None
 blacknets = ['/etc/uniproxy/white.list', '/usr/share/uniproxy/routes.list.gz',]
+upstream  = None
 
 # DNS配置
 dnsserver  = '8.8.8.8'

@@ -135,6 +135,8 @@ deb包安装比较简单，使用以下指令即可。
   当DNS解析后的结果在此IP范围内，会启用代理。None不启用。
 * blacknets: 翻墙黑名单，一个列表，每个元素都是字符串，表示NetFilter文件名。
   当启用后，DNS解析结果不在此IP范围内，会启用代理。None不启用。
+* upstream: 对于满足翻墙的请求，可以转交给upstream处理。
+  一般此处会填写HttpOverHttp或者GAE的实例。
 
 ## DNS配置 ##
 

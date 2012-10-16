@@ -12,8 +12,6 @@ from contextlib import contextmanager
 from gevent import socket, dns, with_timeout, Timeout
 from http import *
 
-import gae
-
 __all__ = ['ProxyServer',]
 
 logger = logging.getLogger('server')
@@ -59,10 +57,7 @@ class ProxyServer(object):
             proxies.extend([ssh_to_proxy(cfg, self.config['max_conn'])
                             for cfg in self.config['sshs']])
         self.connpool = [self.proxytypemap[proxy['type']](**proxy) for proxy in proxies]
-        # self.upstream = None
-        # if self.config.get('upstream'):
-        #     self.upstream = gae.GAE(**self.config.get('upstream'))
-        self.upstream = gae.GAE('http://localhost:8088/fakeurl', 'XOR', '1234567890')
+        self.upstream = self.config.get('upstream')
 
         self.dns.empty()
         self.dns.loadlist(self.config.get('dnsfake'))
@@ -98,8 +93,10 @@ class ProxyServer(object):
             if req: req.address = addr
             if addr is None: return False
             logger.debug('hostname: %s, addr: %s' % (hostname, addr))
-            if self.whitenf and addr in self.whitenf: return True
-            if self.blacknf and addr not in self.blacknf: return True
+            if self.whitenf is not None and addr in self.whitenf:
+                return True
+            if self.blacknf is not None and addr not in self.blacknf:
+                return True
         return False
 
     def do_req(self, req, addr):

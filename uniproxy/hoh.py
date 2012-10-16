@@ -4,7 +4,8 @@
 @date: 2012-10-15
 @author: shell.xu
 '''
-import json, struct
+import json, zlib, base64, random, logging
+from urlparse import urlparse
 from http import *
 
 headerlist = ['Accept', 'Accept-Charset', 'Accept-Encoding', 'Accept-Language', 'Accept-Ranges', 'Age', 'Allow', 'Authorization', 'Cache-Control', 'Connection', 'Content-Encoding', 'Content-Language', 'Content-Length', 'Content-Location', 'Content-Md5', 'Content-Range', 'Content-Type', 'Date', 'Etag', 'Expect', 'Expires', 'From', 'Host', 'If-Match', 'If-Modified-Since', 'If-None-Match', 'If-Range', 'If-Unmodified-Since', 'Last-Modified', 'Location', 'Max-Forwards', 'Pragma', 'Proxy-Authenticate', 'Proxy-Authorization', 'Range', 'Referer', 'Retry-After', 'Server', 'Te', 'Trailer', 'Transfer-Encodin', 'Upgrade', 'User-Agent', 'Vary', 'Via', 'Warning', 'Www-Authenticate', 'Cookie']
@@ -54,3 +55,53 @@ def get_crypt(algoname, key):
         cipher = algo.new(key)
         return cipher.encrypt, cipher.decrypt
     else: raise Exception('unknown cipher %s' % name)
+
+def fakedict(s):
+    r = []
+    while s:
+        kl, vl = random.randint(5, 15), random.randint(50, 200)
+        s, k, v = s[kl+vl:], s[:kl], s[kl:kl+vl]
+        r.append((k, v))
+    return '&'.join(['%s=%s' % i for i in r])
+
+class HttpOverHttp(object):
+    MAXGETSIZE = 512
+    logger = logging.getLogger('hoh')
+
+    def __init__(self, baseurl, algoname, key):
+        from gevent import socket
+        self.baseurl, url = baseurl, urlparse(baseurl)
+        self.socket = socket.socket
+        if url.scheme == 'https': self.socket = ssl_socket()(self.socket)
+        port = url.port or (443 if url.scheme.lower() == 'https' else 80)
+        self.addr, self.path = (url.hostname, port), url.path
+        self.algoname, self.key = algoname, key
+
+    def fmt_reqinfo(self, req):
+        return '%s %s %s' % (req.method, req.uri.split('?', 1)[0], 'gae')
+
+    def client(self, query):
+        if query >= self.MAXGETSIZE:
+            req = request_http(self.path)
+            req.body = query
+            req.set_header('Context-Length', str(len(query)))
+            req.set_header('Context-Type', 'multipart/form-data')
+        else: req = request_http(self.path + '?' + query)
+        res = http_client(req, self.addr, self.socket)
+        return res.read_body()
+
+    def handler(self, req):
+        if req.method.upper() == 'CONNECT': return None
+        self.logger.info(self.fmt_reqinfo(req))
+        d = zlib.compress(dumpreq(req), 9)
+        d = get_crypt(self.algoname, self.key)[0](d)
+        d = base64.b64encode(d, '_%').strip('=')
+        d = self.client(fakedict(d))
+        d = get_crypt(self.algoname, self.key)[1](d)
+        res, options = loadmsg(zlib.decompress(d), HttpResponse)
+        return res
+
+class GAE(HttpOverHttp):
+    def __init__(self, gaeid, algoname, key, ssl=False):
+        super(GAE, self).__init__('%s://%s.appspot.com/' % (
+                'https' if ssl else 'http', gaeid), algoname, key)

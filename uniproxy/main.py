@@ -4,14 +4,15 @@
 @date: 2012-05-25
 @author: shell.xu
 '''
-import sys, logging, gevent, serve, mgr
+import sys, logging, gevent, serve, hoh, mgr
 from os import path
 from gevent import server
 
 logger = logging.getLogger('main')
 
-def import_config(*cfgs):
+def import_config(*cfgs, **kw):
     d = {}
+    if 'd' in kw: d = kw['d']
     for cfg in reversed(cfgs):
         if not path.exists(cfg): continue
         try:
@@ -36,7 +37,7 @@ def main(*cfgs):
     if not cfgs:
         print 'no configure'
         return
-    config = import_config(*cfgs)
+    config = import_config(*cfgs, d={'HttpOverHttp': hoh.HttpOverHttp, 'GAE': hoh.GAE})
     initlog(getattr(logging, config.get('loglevel', 'WARNING')),
             config.get('logfile', None))
     addr = (config.get('localip', ''), config.get('localport', 8118))
