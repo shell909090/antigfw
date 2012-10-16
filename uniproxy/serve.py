@@ -125,11 +125,15 @@ class ProxyServer(object):
         usesocks = self.usesocks(hostname.split(':', 1)[0], req)
         reqinfo = (req, usesocks, addr, time.time())
 
-        if usesocks and self.upstream:
-            res = self.upstream.handler(req)
-            if res is not None:
-                res.sendto(req.stream)
-                return res
+        # if usesocks and self.upstream:
+        if self.upstream:
+            with self.with_worklist(reqinfo):
+                logger.info(fmt_reqinfo(reqinfo))
+                res = self.upstream.handler(req)
+                if res is not None:
+                    res.sendto(req.stream)
+                    req.stream.flush()
+                    return res
 
         with self.with_worklist(reqinfo):
             logger.info(fmt_reqinfo(reqinfo))

@@ -200,3 +200,11 @@ def response_http(code, phrase=None, version=None, headers=None,
         for k, v in headers: res.set_header(k, v)
     res.cache, res.body = cache, body
     return res
+
+def http_client(req, addr, creator):
+    sock = creator()
+    sock.connect(addr)
+    stream = sock.makefile()
+    req.sendto(stream)
+    stream.flush()
+    return recv_msg(stream, HttpResponse)

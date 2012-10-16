@@ -65,9 +65,7 @@ def http_connect(sock, target, username=None, password=None):
                        base64.b64encode('Basic %s:%s' % (username, password)))
     req.send_header(stream)
     res = recv_msg(stream, HttpResponse)
-    if res.code == 200: return sock
-    sock.close()
-    return None
+    if res.code != 200: raise Exception('http proxy connect failed')
 
 def http_proxy(proxyaddr, username=None, password=None):
     def reciver(func):
@@ -85,3 +83,12 @@ class HttpManager(Manager):
                  max_conn=10, name=None, **kargs):
         super(HttpManager, self).__init__(max_conn, name or 'http:%s:%s' % (addr, port))
         self.creator = http_proxy((addr, port), username, password)(self.creator)
+
+def ssl_socket(certfile=None):
+    def reciver(func):
+        def creator(family=socket.AF_INET, type=socket.SOCK_STREAM, proto=0):
+            sock = func(family, type, proto)
+            if not certfile: return ssl.wrap_socket(sock)
+            else: return ssl.wrap_socket(sock, certfile=cretfile)
+        return creator
+    return reciver

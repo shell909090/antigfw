@@ -26,8 +26,8 @@ def get_proxy_auth(users):
 def parse_target(url):
     r = (url.netloc or url.path).split(':', 1)
     if len(r) > 1: port = int(r[1])
-    else: port = 443 if u.scheme.lower() == 'https' else 80
-    return r[0], port, '%s?%s' % (u.path, u.query) if u.query else u.path
+    else: port = 443 if url.scheme.lower() == 'https' else 80
+    return r[0], port, '%s?%s' % (url.path, url.query) if url.query else url.path
 
 def connect(req, sock_factory):
     hostname, port, uri = parse_target(req.url)

@@ -101,22 +101,13 @@ def socks5(proxyaddr, username=None, password=None, rdns=True):
         return creator
     return reciver
 
-def ssl_socket(certfile=None):
-    def reciver(func):
-        def creator(family=socket.AF_INET, type=socket.SOCK_STREAM, proto=0):
-            sock = func(family, type, proto)
-            if not certfile: return ssl.wrap_socket(sock)
-            else: return ssl.wrap_socket(sock, certfile=cretfile)
-        return creator
-    return reciver
-
 class SocksManager(conn.Manager):
 
     def __init__(self, addr, port, username=None, password=None,
                  rdns=True, max_conn=10, name=None, ssl=False, **kargs):
         super(SocksManager, self).__init__(max_conn, name or 'socks5:%s:%s' % (addr, port))
-        if ssl is True: self.creator = ssl_socket()(self.creator)
-        elif ssl: self.creator = ssl_socket(ssl)(self.creator)
+        if ssl is True: self.creator = conn.ssl_socket()(self.creator)
+        elif ssl: self.creator = conn.ssl_socket(ssl)(self.creator)
         self.creator = socks5((addr, port), username, password, rdns)(self.creator)
 
 def str2addr(s):
