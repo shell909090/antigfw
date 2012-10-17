@@ -69,7 +69,7 @@ def mgr_socks_stat(ps, req):
 @auth_manager
 def mgr_reload(ps, req):
     req.read_body()
-    ps.reload()
+    ps.loadconfig()
     return response_http(302, headers=[('Location', '/')])
 
 @serve.ProxyServer.register('/quit')
