@@ -38,7 +38,8 @@ def fmt_reqinfo(info):
 
 class ProxyServer(object):
     proxytypemap = {'socks5': socks.SocksManager, 'http': conn.HttpManager}
-    env = {'NetFilter': netfilter.NetFilter, 'DNSServer': dnsserver.DNSServer}
+    env = {'NetFilter': netfilter.NetFilter, 'DNSServer': dnsserver.DNSServer,
+           'HttpOverHttp': hoh.HttpOverHttp, 'GAE': hoh.GAE}
     env.update(proxytypemap)
     srv_urls = {}
 

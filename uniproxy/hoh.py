@@ -81,13 +81,17 @@ class HttpOverHttp(object):
         return '%s %s %s' % (req.method, req.uri.split('?', 1)[0], 'gae')
 
     def client(self, query):
-        if query >= self.MAXGETSIZE:
+        if len(query) >= self.MAXGETSIZE:
+            logger.debug('query in post mode.')
             req = request_http(self.path)
             req.body = query
             req.set_header('Context-Length', str(len(query)))
             req.set_header('Context-Type', 'multipart/form-data')
-        else: req = request_http(self.path + '?' + query)
+        else:
+            logger.debug('query in get mode.')
+            req = request_http(self.path + '?' + query)
         res = http_client(req, self.addr, self.socket)
+        if res.code != 200: return
         return res.read_body()
 
     def handler(self, req):
@@ -97,6 +101,7 @@ class HttpOverHttp(object):
         d = get_crypt(self.algoname, self.key)[0](d)
         d = base64.b64encode(d, '_%').strip('=')
         d = self.client(fakedict(d))
+        # if d is None: return None
         d = get_crypt(self.algoname, self.key)[1](d)
         res, options = loadmsg(zlib.decompress(d), HttpResponse)
         return res
