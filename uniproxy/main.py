@@ -10,17 +10,6 @@ from gevent import server
 
 logger = logging.getLogger('main')
 
-def import_config(*cfgs):
-    d = {}
-    for cfg in reversed(cfgs):
-        if not path.exists(cfg): continue
-        try:
-            with open(path.expanduser(cfg)) as fi:
-                eval(compile(fi.read(), cfg, 'exec'), d)
-            logger.info('import config %s' % cfg)
-        except (OSError, IOError): logger.error('import config')
-    return dict([(k, v) for k, v in d.iteritems() if not k.startswith('_')])
-
 def initlog(lv, logfile=None):
     rootlog = logging.getLogger()
     if logfile: handler = logging.FileHandler(logfile)
@@ -36,14 +25,13 @@ def main(*cfgs):
     if not cfgs:
         print 'no configure'
         return
-    config = import_config(*cfgs)
-    initlog(getattr(logging, config.get('loglevel', 'WARNING')),
-            config.get('logfile', None))
-    addr = (config.get('localip', ''), config.get('localport', 8118))
-    ps = serve.ProxyServer(config)
+    ps = serve.ProxyServer(cfgs)
+    initlog(getattr(logging, ps.config.get('loglevel', 'WARNING')),
+            ps.config.get('logfile', None))
+    addr = (ps.config.get('localip', ''), ps.config.get('localport', 8118))
     try:
-        if config.get('dnsproxy'):
-            gevent.spawn(ps.dns.server, config.get('dnsport', 53))
+        if ps.config.get('dnsproxy'):
+            gevent.spawn(ps.dns.server, ps.config.get('dnsport', 53))
         try: server.StreamServer(addr, ps.http_handler).serve_forever()
         except KeyboardInterrupt: pass
     finally: ps.final()

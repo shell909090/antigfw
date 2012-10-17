@@ -16,6 +16,17 @@ __all__ = ['ProxyServer',]
 
 logger = logging.getLogger('server')
 
+def import_config(cfgs, d=None):
+    if d is None: d = {}
+    for cfg in reversed(cfgs):
+        if not path.exists(cfg): continue
+        try:
+            with open(path.expanduser(cfg)) as fi:
+                eval(compile(fi.read(), cfg, 'exec'), d)
+            logger.info('import config %s' % cfg)
+        except (OSError, IOError): logger.error('import config')
+    return dict([(k, v) for k, v in d.iteritems() if not k.startswith('_')])
+
 def mgr_default(self, req):
     req.read_body()
     return response_http(404, body='Page not found')
@@ -38,19 +49,21 @@ class ProxyServer(object):
     proxytypemap = {'socks5': socks.SocksManager, 'http': conn.HttpManager}
     srv_urls = {}
 
-    def __init__(self, config):
+    def __init__(self, cfgs):
         logger.info('init ProxyServer')
-        self.config = config
+        self.cfgs = cfgs
+        self.loadconfig()
         self.connpool, self.worklist = [], []
+        self.direct = conn.DirectManager(self.dns)
+
+    def loadconfig(self):
+        self.config = import_config(self.cfgs)
         self.proxy_auth = proxy.get_proxy_auth(self.config.get('users'))
         self.dns = dnsserver.DNSServer(
             dnsserver=self.config.get('dnsserver', None),
             cachesize=self.config.get('dnscache', 512),
             timeout=self.config.get('dnstimeout', 30))
-        self.reload()
-        self.direct = conn.DirectManager(self.dns)
 
-    def reload(self):
         proxies = self.config.get('proxies', None)
         if proxies is None: proxies = []
         if self.config.get('max_conn', None):
