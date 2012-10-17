@@ -28,10 +28,11 @@ def main(*cfgs):
     ps = serve.ProxyServer(cfgs)
     initlog(getattr(logging, ps.config.get('loglevel', 'WARNING')),
             ps.config.get('logfile', None))
+    logger.info('ProxyServer inited')
     addr = (ps.config.get('localip', ''), ps.config.get('localport', 8118))
     try:
-        if ps.config.get('dnsproxy'):
-            gevent.spawn(ps.dns.server, ps.config.get('dnsport', 53))
+        if ps.config.get('port'):
+            gevent.spawn(ps.dns.server, ps.config.get('dnsport'))
         try: server.StreamServer(addr, ps.http_handler).serve_forever()
         except KeyboardInterrupt: pass
     finally: ps.final()

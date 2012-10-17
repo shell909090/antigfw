@@ -6,7 +6,7 @@
 '''
 import sys, struct, getopt, logging, conn
 from contextlib import contextmanager
-from gevent import ssl, socket, coros
+from gevent import socket, coros
 
 __all__ = ['SocksManager',]
 logger = logging.getLogger('socks')
@@ -109,20 +109,3 @@ class SocksManager(conn.Manager):
         if ssl is True: self.creator = conn.ssl_socket()(self.creator)
         elif ssl: self.creator = conn.ssl_socket(ssl)(self.creator)
         self.creator = socks5((addr, port), username, password, rdns)(self.creator)
-
-def str2addr(s):
-    r = s.split(':')
-    r[1] = int(r[1])
-    return tuple(r)
-
-def main():
-    optlist, args = getopt.getopt(sys.argv[1:], 'p:rsu:')
-    optdict = dict(optlist)
-    sock = socks5(str2addr(args[0]), optdict.get('-u'),
-                  optdict.get('-p'), '-s' in optdict)
-    socks5_connect(sock, str2addr(args[1]), '-r' not in optdict)
-    sock.sendall('GET / HTTP/1.1\r\n\r\n')
-    print sock.recv(1024)
-    sock.close()
-
-if __name__ == '__main__': main()

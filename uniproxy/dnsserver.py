@@ -75,16 +75,16 @@ class DNSServer(object):
     TIMEOUT   = 3600
     RETRY     = 3
 
-    def __init__(self, dnsserver=None, cachesize=512, timeout=30):
+    def __init__(self, dnsserver, cachesize=512, timeout=30):
         self.dnsserver = dnsserver or self.DNSSERVER
         self.cache, self.cachesize = ObjHeap(cachesize), cachesize
         self.timeout = timeout
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.fakeset = set()
         self.inquery = {}
-        gevent.spawn(self.receiver)
+        self.gr = gevent.spawn(self.receiver)
 
-    def empty(self): self.fakeset = set()
+    def stop(self): self.gr.kill()
 
     def load(self, stream):
         for line in stream:

@@ -36,53 +36,42 @@ def fmt_reqinfo(info):
     return '%s %s %s' % (
         req.method, req.uri.split('?', 1)[0], 'socks' if usesocks else 'direct')
 
-def ssh_to_proxy(cfg, max_conn=None):
-    if 'sockport' in cfg:
-        return {'type': 'socks5', 'addr': '127.0.0.1', 'port': cfg['sockport'],
-                'max_conn': max_conn, 'name': 'socks5:%s@%s' % (cfg['username'], cfg['sshhost'])}
-    elif 'listenport' in cfg:
-        return {'type': 'http', 'addr': '127.0.0.1', 'port': cfg['listenport'][0],
-                'max_conn': max_conn, 'name': 'http:%s@%s' % (cfg['username'], cfg['sshhost'])}
-    raise Exception('unknown ssh define')
-
 class ProxyServer(object):
     proxytypemap = {'socks5': socks.SocksManager, 'http': conn.HttpManager}
+    env = {'NetFilter': netfilter.NetFilter, 'DNSServer': dnsserver.DNSServer}
+    env.update(proxytypemap)
     srv_urls = {}
 
     def __init__(self, cfgs):
-        logger.info('init ProxyServer')
-        self.cfgs = cfgs
+        self.cfgs, self.dns, self.worklist = cfgs, None, []
         self.loadconfig()
-        self.connpool, self.worklist = [], []
-        self.direct = conn.DirectManager(self.dns)
 
+    def ssh2proxy(self, cfg):
+        if 'sockport' in cfg:
+            return socks.SocksManager(
+                '127.0.0.1', cfg['sockport'], max_conn=self.config['max_conn'],
+                name='socks5:%s@%s' % (cfg['username'], cfg['sshhost']))
+        elif 'listenport' in cfg:
+            return conn.HttpManager(
+                '127.0.0.1', cfg['listenport'][0], max_conn=self.config['max_conn'],
+                name='http:%s@%s' % (cfg['username'], cfg['sshhost']))
+        raise Exception('unknown ssh define')
+        
     def loadconfig(self):
-        self.config = import_config(
-            self.cfgs, d={'HttpOverHttp': hoh.HttpOverHttp, 'GAE': hoh.GAE})
+        self.config = import_config(self.cfgs, self.env)
         self.proxy_auth = proxy.get_proxy_auth(self.config.get('users'))
-        self.dns = dnsserver.DNSServer(
-            dnsserver=self.config.get('dnsserver', None),
-            cachesize=self.config.get('dnscache', 512),
-            timeout=self.config.get('dnstimeout', 30))
 
-        proxies = self.config.get('proxies', None)
-        if proxies is None: proxies = []
+        self.proxies = self.config.get('proxies', None)
+        if self.proxies is None: self.proxies = []
         if self.config.get('max_conn', None):
-            proxies.extend([ssh_to_proxy(cfg, self.config['max_conn'])
-                            for cfg in self.config['sshs']])
-        self.connpool = [self.proxytypemap[proxy['type']](**proxy) for proxy in proxies]
+            self.proxies.extend(map(self.ssh2proxy, self.config['sshs']))
         self.upstream = self.config.get('upstream')
 
-        self.dns.empty()
-        self.dns.loadlist(self.config.get('dnsfake'))
-        self.whitenf = self.load_filter(netfilter.NetFilter, 'whitenets')
-        self.blacknf = self.load_filter(netfilter.NetFilter, 'blacknets')
-
-    def load_filter(self, cls, name):
-        if not self.config.get(name): return None
-        f = cls()
-        for filepath in self.config[name]: f.loadfile(filepath)
-        return f
+        if self.dns is not None: self.dns.stop()
+        self.dns = self.config.get('dnsserver')
+        self.whitenf = self.config.get('whitenets')
+        self.blacknf = self.config.get('blacknets')
+        self.direct = conn.DirectManager(self.dns)
 
     @classmethod
     def register(cls, url):
@@ -99,7 +88,7 @@ class ProxyServer(object):
 
     def get_conn_mgr(self, direct):
         if direct: return self.direct
-        return min(self.connpool, key=lambda x: x.size())
+        return min(self.proxies, key=lambda x: x.size())
 
     def usesocks(self, hostname, req):
         if self.whitenf or self.blacknf:

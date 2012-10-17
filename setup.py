@@ -18,5 +18,5 @@ setup(
     description=description, long_description=long_description,
     author='Shell.E.Xu', author_email='shell909090@gmail.com',
     scripts=['dns2tcp',], packages=['uniproxy',],
-    data_files=[('share/uniproxy', ['dnsfake', 'routes.list.gz']),]
+    data_files=[('share/uniproxy', ['dnsfake', 'reserved.list', 'routes.list.gz']),]
     )

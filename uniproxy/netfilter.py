@@ -21,9 +21,9 @@ def makemask(num):
 
 class NetFilter(object):
 
-    def __init__(self, filename=None):
+    def __init__(self, *filenames):
         self.nets = {}
-        if filename: self.loadfile(filename)
+        for filename in filenames: self.loadfile(filename)
 
     def loadline(self, line):
         if line.find(' ') != -1:
