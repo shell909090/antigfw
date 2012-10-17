@@ -93,13 +93,12 @@ deb包安装比较简单，使用以下指令即可。
 假定有一个或多个ssh或者同类型socksv5代理在工作，在此之上做一个http代理，让其他程序使用，达到以下目的：
 
 1. 自动分流，只有特定的域名才进行翻墙。内置了三套机制来分析是否需要翻墙。
-  1. 域名分析模式，当域名匹配到域名列表，则翻墙。
-  2. 白名单模式，当域名的IP在白名单地址表中，则翻墙。
-  3. 黑名单模式，当域名的IP不在黑名单地址表中，则翻墙。
+  1. 白名单模式，当域名的IP在白名单地址表中，则翻墙。
+  2. 黑名单模式，当域名的IP不在黑名单地址表中，则翻墙。
 2. 支持CONNECT模式，可以用于https翻墙。
 3. 负载均衡，每个upstream服务器尽量均衡访问，并可以设定最高上限。
 
-默认模式是域名+黑名单混合。域名内放置常用域名列表，黑名单是来自[chnroutes](https://github.com/fivesheep/chnroutes)的IP列表。凡是非中国IP，一概翻墙。这会引入另一个问题，即，对于某些智能DNS，它会引导你访问国外站点而非国内站点。
+默认模式是黑名单。域名内放置常用域名列表，黑名单是来自[chnroutes](https://github.com/fivesheep/chnroutes)的IP列表。凡是非中国IP，一概翻墙。这会引入另一个问题，即，对于某些智能DNS，它会引导你访问国外站点而非国内站点。
 
 另外，在dnsproxy模式下会打开dns代理服务。这个服务会使用uniproxy内置的代理服务群，以tcp方式转发udp的dns请求，从而避免dns劫持和污染。你可以仅将DNS服务器设定到本机，而不用uniproxy代理所有请求。
 
@@ -118,32 +117,55 @@ deb包安装比较简单，使用以下指令即可。
 ## 代理配置 ##
 
 * max_conn: 默认最大可连接数。如果设定为0，则sshs到proxy的自动转换不生效。
-* proxy: 一个列表，每个元素为一个字典，指名一个代理。
-  * type: 类型目前可以是socks5,http。
-  * ssl: 是否需要ssl连接，默认为False。
-  * addr: 服务器地址。
-  * port: 端口。
-  * max\_conn: 最大可连接数。
-  * name: 显示名。
-  * username: 连接用户名。
-  * password: 密码。
-  * rdns: 是否使用dns解析域名。
+* proxy: 一个列表，每个元素为一个代理对象，目前可以取socks5和http。
+
+socks5必须参数：
+
+* addr: 服务器地址。
+* port: 端口。
+
+socks5可选参数：
+
+* username: 连接用户名。
+* password: 密码。
+* rdns: 是否使用dns解析域名。
+* max\_conn: 最大可连接数。
+* name: 显示名。
+* ssl: 是否需要ssl连接，默认为False。
+
+http必须参数：
+
+* addr: 服务器地址。
+* port: 端口。
+
+http可选参数：
+
+* username: 连接用户名。
+* password: 密码。
+* max\_conn: 最大可连接数。
+* name: 显示名。
+* ssl: 是否需要ssl连接，默认为False。
 
 ## 过滤配置 ##
 
-* whitenets: 翻墙白名单，一个列表，每个元素都是字符串，表示NetFilter文件名。
+* whitenets: 翻墙白名单，一个规则，一般使用NetFilter。
+  每个参数都是字符串，表示NetFilter文件名。
   当DNS解析后的结果在此IP范围内，会启用代理。None不启用。
-* blacknets: 翻墙黑名单，一个列表，每个元素都是字符串，表示NetFilter文件名。
+* blacknets: 翻墙黑名单，一个规则，一般使用NetFilter。
+  每个参数都是字符串，表示NetFilter文件名。
   当启用后，DNS解析结果不在此IP范围内，会启用代理。None不启用。
 
 ## DNS配置 ##
 
-* dnsserver: 一个DNS服务器名，代理在需要DNS查询时会使用这个DNS作为默认DNS。
-* dnscache: DNS缓存大小，默认为512。
-* dnsproxy: 控制是否打开dnsproxy。
-* dnsport: 打开的dnsport在哪个端口。
-* dnsfake: 假dns结果的列表。
-* dnstimeout: dns超时时间，如果一直没有结果返回，就出错
+* dnsserver: 一个DNS服务器，代理在需要DNS查询时会使用这个DNS作为默认DNS。
+  * dnsserver: DNS服务器IP
+  * dnscache: DNS缓存大小，默认为512。
+  * dnstimeout: dns超时时间，如果一直没有结果返回，就出错
+* dnsport: 内建的dns服务器打开哪个端口，建议值53。为None则不打开DNS服务器
+
+如何引入假的dns列表：
+
+    dnsserver.loadfile('/usr/share/uniproxy/dnsfake')
 
 ## NetFilter ##
 

@@ -6,10 +6,19 @@
 '''
 import logging
 from contextlib import contextmanager
-from gevent import socket, coros, dns
+from gevent import ssl, socket, coros, dns
 from http import *
 
 logger = logging.getLogger('conn')
+
+def ssl_socket(certfile=None):
+    def reciver(func):
+        def creator(family=socket.AF_INET, type=socket.SOCK_STREAM, proto=0):
+            sock = func(family, type, proto)
+            if not certfile: return ssl.wrap_socket(sock)
+            else: return ssl.wrap_socket(sock, certfile=cretfile)
+        return creator
+    return reciver
 
 class DirectManager(object):
     name = 'direct'
@@ -82,6 +91,9 @@ def http_proxy(proxyaddr, username=None, password=None):
 
 class HttpManager(Manager):
     def __init__(self, addr, port, username=None, password=None,
-                 max_conn=10, name=None, **kargs):
-        super(HttpManager, self).__init__(max_conn, name or 'http:%s:%s' % (addr, port))
+                 max_conn=10, name=None, ssl=False, **kargs):
+        super(HttpManager, self).__init__(
+            max_conn, name or '%s:%s:%s' % ('https' if ssl else 'http', addr, port))
+        if ssl is True: self.creator = ssl_socket()(self.creator)
+        elif ssl: self.creator = ssl_socket(ssl)(self.creator)
         self.creator = http_proxy((addr, port), username, password)(self.creator)
