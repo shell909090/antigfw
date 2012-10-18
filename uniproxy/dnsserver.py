@@ -115,6 +115,16 @@ class DNSServer(object):
             with openfile(filepath, 'w+') as fo: self.save(fo)
         except (OSError, IOError): return False
 
+    def get_ipaddrs(self, r):
+        ipaddrs = [rdata for name, type, cls, ttl, rdata in r.ans if type == TYPE.A]
+        if not ipaddrs:
+            logger.info('drop an empty dns response.')
+            return
+        if self.fakeset and self.fakeset & set(ipaddrs):
+            logger.info('drop %s in fakeset.' % ipaddrs)
+            return
+        return ipaddrs
+
     def gethostbyname(self, name):
         try:
             socket.inet_aton(name)
@@ -145,11 +155,8 @@ class DNSServer(object):
             try:
                 r = qp.get(timeout=self.timeout)
                 logger.debug('get response with id: %d' % r.id)
-                ipaddrs = [rdata for name, type, cls, ttl, rdata in r.ans if type == TYPE.A]
-                if self.fakeset and any(map(lambda ip: ip in self.fakeset, ipaddrs)):
-                    logger.info('drop %s in fakeset.' % ipaddrs)
-                    continue
-                return ipaddrs
+                ipaddrs = self.get_ipaddrs(r)
+                if ipaddrs: return ipaddrs
             except (EOFError, socket.error): continue
             except timeout.Timeout: return
 
@@ -183,10 +190,7 @@ class DNSServer(object):
         # TODO: timeout!
         def sendback(r, d):
             assert r.id==q.id
-            ipaddrs = [rdata for name, type, cls, ttl, rdata in r.ans if type == TYPE.A]
-            if self.fakeset and any(map(lambda ip: ip in self.fakeset, ipaddrs)):
-                logger.info('drop %s in fakeset.' % ipaddrs)
-                return
+            if not self.get_ipaddrs(r): return
             sock.sendto(d, addr)
             del self.inquery[q.id]
         self.inquery[q.id] = sendback
@@ -201,7 +205,6 @@ class DNSServer(object):
             try:
                 while True:
                     data, addr = sock.recvfrom(1024)
-                    logger.debug('data come in from %s' % str(addr))
                     self.on_datagram(data, sock, addr)
             except Exception, err: logger.exception(err)
 
