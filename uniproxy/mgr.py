@@ -79,9 +79,11 @@ def mgr_quit(ps, req): sys.exit(-1)
 filter_list = template.Template(template='''
 <html><body>
 {%import cStringIO%}
-{%strs = cStringIO.StringIO()
-filter.save(strs)%}
+{%if filter is not None:%}
+{%strs = cStringIO.StringIO()%}
+{%filter.save(strs)%}
 <pre>{%=strs.getvalue()%}</pre>
+{%end%}
 </body></html>
 ''')
 
