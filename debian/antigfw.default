@@ -28,14 +28,16 @@ proxies   = None
 conn_tout = None
 http_tout = 600
 
-# 过滤配置
-whitenets = None
-blacknets = NetFilter('/etc/uniproxy/white.list',
-                      '/usr/share/uniproxy/reserved.list',
-                      '/usr/share/uniproxy/routes.list.gz')
-upstream  = None
+try:
+    # 过滤配置
+    whitenets = None
+    blacknets = NetFilter('/etc/uniproxy/white.list',
+                          '/usr/share/uniproxy/reserved.list',
+                          '/usr/share/uniproxy/routes.list.gz')
+    upstream  = None
 
-# DNS配置
-dnsport   = None
-dnsserver = DNSServer('8.8.8.8', 512, 30)
-dnsserver.loadfile('/usr/share/uniproxy/dnsfake')
+    # DNS配置
+    dnsport   = None
+    dnsserver = DNSServer('8.8.8.8', 512, 30)
+    dnsserver.loadfile('/usr/share/uniproxy/dnsfake')
+except NameError: pass

@@ -28,10 +28,10 @@ class NetFilter(object):
     def loadline(self, line):
         if line.find(' ') != -1:
             addr, mask = line.split(' ', 1)
+            addr, mask = socket.inet_aton(addr), socket.inet_aton(mask)
         elif line.find('/') != -1:
             addr, mask = line.split('/', 1)
-            mask = makemask(int(mask))
-        addr, mask = socket.inet_aton(addr), socket.inet_aton(mask)
+            addr, mask = socket.inet_aton(addr), makemask(int(mask))
         self.nets.setdefault(mask, set())
         self.nets[mask].add(get_netaddr(addr, mask))
 
