@@ -37,7 +37,7 @@ socks_stat = template.Template(template='''
 <table>
   <tr><td>socks</td><td>stat</td></tr>
   <tr><td>{%=ps.direct.name%}</td><td>{%=ps.direct.stat()%}</td></tr>
-  {%for i in ps.connpool:%}
+  {%for i in ps.proxies:%}
     <tr><td>{%=i.name%}</td><td>{%=i.stat()%}</td></tr>
   {%end%}
 </table><p/>

@@ -92,7 +92,7 @@ class ProxyServer(object):
         return min(self.proxies, key=lambda x: x.size())
 
     def usesocks(self, hostname, req):
-        if self.whitenf or self.blacknf:
+        if self.whitenf is not None or self.blacknf is not None:
             addr = self.dns.gethostbyname(hostname)
             if req: req.address = addr
             if addr is None: return False
