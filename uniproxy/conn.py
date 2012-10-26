@@ -6,7 +6,8 @@
 '''
 import logging
 from contextlib import contextmanager
-from gevent import ssl, socket, coros, dns
+from gevent import ssl, dns, coros, socket, Timeout
+from gevent import with_timeout as call_timeout
 from http import *
 
 logger = logging.getLogger('conn')
@@ -103,4 +104,10 @@ def ssl_socket(certfile=None):
             if not certfile: return ssl.wrap_socket(sock)
             else: return ssl.wrap_socket(sock, certfile=cretfile)
         return creator
+    return reciver
+
+def set_timeout(timeout=None):
+    def reciver(func):
+        if timeout is None: return func
+        return lambda *p: call_timeout(timeout, func, *p)
     return reciver

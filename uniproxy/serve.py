@@ -9,7 +9,7 @@ import socks, proxy, conn, hoh, dnsserver, netfilter
 from os import path
 from urlparse import urlparse
 from contextlib import contextmanager
-from gevent import socket, dns, with_timeout, Timeout
+from gevent import dns, socket, Timeout
 from http import *
 
 __all__ = ['ProxyServer',]
@@ -74,6 +74,9 @@ class ProxyServer(object):
         self.blacknf = self.config.get('blacknets')
         self.direct = conn.DirectManager(self.dns)
 
+        self.func_connect = conn.set_timeout(self.config.get('conn_tout'))(proxy.connect)
+        self.func_http = conn.set_timeout(self.config.get('http_tout'))(proxy.http)
+
     @classmethod
     def register(cls, url):
         def inner(func):
@@ -119,10 +122,10 @@ class ProxyServer(object):
 
         if reqconn:
             hostname, func, tout = (
-                req.uri, proxy.connect, self.config.get('conn_tout'))
+                req.uri, self.func_connect, self.config.get('conn_noac'))
         else:
             hostname, func, tout = (
-                req.url.netloc, proxy.http, self.config.get('http_tout'))
+                req.url.netloc, self.func_http, self.config.get('http_noac'))
         usesocks = self.usesocks(hostname.split(':', 1)[0], req)
         reqinfo = (req, usesocks, addr, time.time())
 
@@ -138,11 +141,7 @@ class ProxyServer(object):
 
         with self.with_worklist(reqinfo):
             logger.info(fmt_reqinfo(reqinfo))
-            if not tout:
-                return func(req, self.get_conn_mgr(not usesocks))
-            try:
-                return with_timeout(
-                    tout, func, req, self.get_conn_mgr(not usesocks))
+            try: return func(req, self.get_conn_mgr(not usesocks), tout)
             except Timeout, err:
                 logger.warn('connection timeout: %s' % req.uri)
 
