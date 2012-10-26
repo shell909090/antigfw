@@ -5,6 +5,7 @@
 @author: shell.xu
 '''
 import os, copy, time, base64, logging
+import conn
 from urlparse import urlparse
 from gevent import select
 from http import *
@@ -31,7 +32,19 @@ def parse_target(uri):
     else: port = 443 if u.scheme.lower() == 'https' else 80
     return r[0], port, '%s?%s' % (u.path, u.query) if u.query else u.path
 
-def connect(req, sock_factory):
+# WARN: maybe dangerous to ssl
+# TODO: timeout
+def fdcopy(fd1, fd2):
+    fdlist = [fd1, fd2]
+    while True:
+        for rfd in select.select(fdlist, [], [])[0]:
+            try: d = os.read(rfd, BUFSIZE)
+            except OSError: d = ''
+            if not d: raise EOFError()
+            try: os.write(fd2 if rfd == fd1 else fd1, d)
+            except OSError: raise EOFError()
+
+def connect(req, sock_factory, timeout=None):
     hostname, port, uri = parse_target(req.uri)
     try:
         with sock_factory.socket() as sock:
@@ -39,21 +52,19 @@ def connect(req, sock_factory):
             res = HttpResponse(req.version, 200, 'OK')
             res.send_header(req.stream)
             req.stream.flush()
-
-            # WARN: maybe dangerous to ssl
-            fd1, fd2 = req.stream.fileno(), sock.fileno()
-            fdlist = [fd1, fd2]
-            while True:
-                for rfd in select.select(fdlist, [], [])[0]:
-                    try: d = os.read(rfd, BUFSIZE)
-                    except OSError: d = ''
-                    if not d: raise EOFError()
-                    try: os.write(fd2 if rfd == fd1 else fd1, d)
-                    except OSError: raise EOFError()
+            fdcopy(req.stream.fileno(), sock.fileno())
     finally: logger.info('%s closed' % req.uri)
 
-def http(req, sock_factory):
+def streamcopy(req, stream1, stream2, tout):
+    iter = req.read_chunk(stream1, raw=True).__iter__()
+    while True:
+        try: d = tout(iter.next)()
+        except StopIteration, err: break
+        tout(stream2.write)(d)
+
+def http(req, sock_factory, timeout=None):
     t = time.time()
+    tout = conn.set_timeout(timeout)
     hostname, port, uri = parse_target(req.uri)
     reqx = copy.copy(req)
     reqx.uri = uri
@@ -63,15 +74,15 @@ def http(req, sock_factory):
         stream1 = sock.makefile()
 
         if VERBOSE: req.dbg_print()
-        reqx.send_header(stream1)
-        for d in reqx.read_chunk(req.stream, raw=True): stream1.write(d)
+        tout(reqx.send_header)(stream1)
+        streamcopy(reqx, req.stream, stream1, tout)
         stream1.flush()
 
         res = recv_msg(stream1, HttpResponse)
         if VERBOSE: res.dbg_print()
-        res.send_header(req.stream)
+        tout(res.send_header)(req.stream)
         hasbody = req.method.upper() != 'HEAD' and res.code not in CODE_NOBODY
-        for d in res.read_chunk(stream1, hasbody, True): req.stream.write(d)
+        streamcopy(res, stream1, req.stream, tout)
         req.stream.flush()
     res.connection = req.get_header('Proxy-Connection', '').lower() == 'keep-alive'
     logger.debug('%s with %d in %0.2f, %s' % (

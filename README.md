@@ -118,6 +118,10 @@ deb包安装比较简单，使用以下指令即可。
 
 * max_conn: 默认最大可连接数。如果设定为0，则sshs到proxy的自动转换不生效。
 * proxy: 一个列表，每个元素为一个代理对象，目前可以取socks5和http。
+* conn_tout: connect请求的超时参数
+* http_tout: http请求的超时参数
+* conn_noac: connect请求的无动作超时参数
+* http_noac: http请求的无动作超时参数
 
 socks5必须参数：
 

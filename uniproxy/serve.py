@@ -10,7 +10,7 @@ from http import *
 from os import path
 from urlparse import urlparse
 from contextlib import contextmanager
-from gevent import socket, dns, with_timeout, Timeout
+from gevent import dns, socket, Timeout
 
 __all__ = ['ProxyServer',]
 
@@ -72,6 +72,9 @@ class ProxyServer(object):
         self.blacknf = self.config.get('blacknets')
         self.direct = conn.DirectManager(self.dns)
 
+        self.func_connect = conn.set_timeout(self.config.get('conn_tout'))(proxy.connect)
+        self.func_http = conn.set_timeout(self.config.get('http_tout'))(proxy.http)
+
     @classmethod
     def register(cls, url):
         def inner(func):
@@ -108,25 +111,22 @@ class ProxyServer(object):
 
         req.url = urlparse(req.uri)
         if req.method.upper() == 'CONNECT':
-            hostname, func = req.url.path, proxy.connect
-            tout = self.config.get('conn_tout')
+            hostname, func = req.url.path, self.func_connect
+            tout = self.config.get('conn_noac')
         else:
             if not req.url.netloc:
                 logger.info('manager %s' % (req.url.path,))
                 res = self.srv_urls.get(req.url.path, mgr_default)(self, req)
                 res.sendto(req.stream)
                 return res
-            hostname, func = req.url.netloc, proxy.http
-            tout = self.config.get('http_tout')
+            hostname, func = req.url.netloc, self.func_http
+            tout = self.config.get('http_noac')
 
         usesocks = self.usesocks(hostname.split(':', 1)[0])
         reqinfo = (req, usesocks, addr, time.time())
         with self.with_worklist(reqinfo):
             logger.info(fmt_reqinfo(reqinfo))
-            if not tout: return func(req, self.get_conn_mgr(not usesocks))
-            try:
-                return with_timeout(
-                    tout, func, req, self.get_conn_mgr(not usesocks))
+            try: return func(req, self.get_conn_mgr(not usesocks), tout)
             except Timeout, err:
                 logger.warn('connection timeout: %s' % req.uri)
 

@@ -6,7 +6,8 @@
 '''
 import logging
 from contextlib import contextmanager
-from gevent import ssl, socket, coros, dns
+from gevent import ssl, dns, coros, socket, Timeout
+from gevent import with_timeout as call_timeout
 from http import *
 
 logger = logging.getLogger('conn')
@@ -97,3 +98,10 @@ class HttpManager(Manager):
         if ssl is True: self.creator = ssl_socket()(self.creator)
         elif ssl: self.creator = ssl_socket(ssl)(self.creator)
         self.creator = http_proxy((addr, port), username, password)(self.creator)
+
+def set_timeout(timeout=None):
+    def reciver(func):
+        if timeout is None: return func
+        return lambda *p: call_timeout(timeout, func, *p)
+    return reciver
+        
