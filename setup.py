@@ -6,7 +6,7 @@
 '''
 from distutils.core import setup
 
-version = '1.8'
+version = '2.0'
 description = 'toolset for cross GFW'
 long_description = ' toolset for cross GFW, include such tools.\
   * auto start multi ssh tunnel\

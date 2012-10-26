@@ -1,3 +1,9 @@
+antigfw (2.0) UNRELEASED; urgency=low
+
+  * http over http
+
+ -- Shell Xu <shell909090@gmail.com>  Fri, 26 Oct 2012 13:08:16 +0800
+
 antigfw (1.8) unstable; urgency=low
 
   * timeout
