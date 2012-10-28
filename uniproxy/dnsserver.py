@@ -7,21 +7,32 @@
 import sys, time, heapq, random, getopt, logging, gevent
 from mydns import *
 from contextlib import contextmanager
-from gevent import socket, queue, timeout
+from gevent import socket, queue
 
 logger = logging.getLogger('dnsserver')
 
 class ObjHeap(object):
     ''' 使用lru算法的对象缓存容器，感谢Evan Prodromou <evan@bad.dynu.ca>。
     thx for Evan Prodromou <evan@bad.dynu.ca>. '''
+    MAXSEQ = 0x100000000
 
     class __node(object):
         def __init__(self, k, v, f): self.k, self.v, self.f = k, v, f
         def __cmp__(self, o): return self.f > o.f
 
     def __init__(self, size):
-        self.size, self.f = size, 0
-        self.__dict, self.__heap = {}, []
+        self.size = size
+        self.clean()
+
+    def clean(self):
+        self.f, self.__dict, self.__heap = 0, {}, []
+
+    def getseq(self):
+        if self.f >= self.MAXSEQ:
+            self.f = 1
+            for n in self.__heap: n.f = 0
+        else: self.f += 1
+        return self.f
 
     def __len__(self): return len(self.__dict)
     def __contains__(self, k): return self.__dict.has_key(k)
@@ -29,45 +40,41 @@ class ObjHeap(object):
     def __setitem__(self, k, v):
         if self.__dict.has_key(k):
             n = self.__dict[k]
-            n.v = v
-            self.f += 1
-            n.f = self.f
-            heapq.heapify(self.__heap)
-        else:
-            while len(self.__heap) >= self.size:
-                del self.__dict[heapq.heappop(self.__heap).k]
-                self.f = 0
-                for n in self.__heap: n.f = 0
-            n = self.__node(k, v, self.f)
+            n.v, n.f = v, self.getseq()
+        elif len(self.__heap) < self.size:
+            n = self.__node(k, v, self.getseq())
+            self.__heap.append(n)
             self.__dict[k] = n
-            heapq.heappush(self.__heap, n)
+        else:
+            heapq.heapify(self.__heap)
+            try:
+                while len(self.__heap) > self.size:
+                    del self.__dict[heapq.heappop(self.__heap).k]
+                n = self.__node(k, v, self.getseq())
+                del self.__dict[heapq.heappushpop(self.__heap, n).k]
+                self.__dict[k] = n
+            except KeyError: self.clean()
 
     def __getitem__(self, k):
         n = self.__dict[k]
-        self.f += 1
-        n.f = self.f
-        heapq.heapify(self.__heap)
+        n.f = self.getseq()
         return n.v
 
     def get(self, k):
         n = self.__dict.get(k)
         if n is None: return None
-        self.f += 1
-        n.f = self.f
-        heapq.heapify(self.__heap)
+        n.f = self.getseq()
         return n.v
 
     def __delitem__(self, k):
         n = self.__dict[k]
-        del self.__dict[k]
         self.__heap.remove(n)
-        heapq.heapify(self.__heap)
+        del self.__dict[k]
         return n.v
 
     def __iter__(self):
         c = self.__heap[:]
         while len(c): yield heapq.heappop(c).k
-        raise StopIteration
 
 class DNSServer(object):
     DNSSERVER = '8.8.8.8'
@@ -158,7 +165,7 @@ class DNSServer(object):
                 ipaddrs = self.get_ipaddrs(r)
                 if ipaddrs: return ipaddrs
             except (EOFError, socket.error): continue
-            except timeout.Timeout: return
+            except queue.Empty: return
 
     def query(self, name, type=TYPE.A):
         q = mkquery((name, type))
