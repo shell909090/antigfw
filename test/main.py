@@ -48,6 +48,7 @@ def main():
     loader = unittest.TestLoader()
     suite = unittest.TestSuite()
     suite.addTests(loader.loadTestsFromModule(__import__('main')))
+    suite.addTests(loader.loadTestsFromModule(__import__('lru')))
     unittest.TextTestRunner(verbosity = 2).run(suite)
 
 if __name__ == '__main__': main()
