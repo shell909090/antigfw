@@ -3,6 +3,7 @@
 *.pyo
 *.so
 *.o
+*.c
 *~
 
 *ropeproject*

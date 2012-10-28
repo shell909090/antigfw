@@ -4,7 +4,7 @@ Priority: extra
 Maintainer: Shell Xu <shell909090@gmail.com>
 Build-Depends: debhelper (>= 8), python
 Standards-Version: 3.9.3
-X-Python-Version: >= 2.5
+X-Python-Version: >= 2.6
 Homepage: https://github.com/shell909090/antigfw
 
 Package: antigfw

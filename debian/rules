@@ -2,4 +2,4 @@
 # -*- makefile -*-
 
 %:
-	dh --with python2 $@
+	dh --with python2 --buildsystem=python_distutils $@
