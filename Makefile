@@ -4,8 +4,12 @@
 ## Version: $Id: Makefile,v 0.0 2012/10/28 15:52:13 shell Exp $
 ## Keywords: 
 ## X-URL: 
+TARGET=dns2tcp
 
-all: dns2tcp
+all: $(TARGET)
+
+clean:
+	rm -rf dns2tcp.c $(TARGET)
 
 dns2tcp.c: dns2tcp.py
 	cython --embed $^
