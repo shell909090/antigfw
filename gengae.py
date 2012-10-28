@@ -22,7 +22,7 @@ def template(s, d):
 
 def gencfg(srcpath, dstpath):
     with open(srcpath) as fi: data = fi.read()
-    data = template(data, {"youappid": raw_input("youappid:")})
+    data = template(data, {"youappid": raw_input("youappid: ")})
     with open(dstpath, 'w') as fo: fo.write(data)
 
 def main():

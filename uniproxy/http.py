@@ -141,7 +141,7 @@ class HttpMessage(object):
             for d in self.body(*p, **kw): stream.write(d)
         else: stream.write(self.body)
 
-    def dbg_print(self):
+    def debug(self):
         logger.debug(self.d + self.get_startline())
         for k, v in self.headers: logger.debug('%s%s: %s' % (self.d, k, v))
 

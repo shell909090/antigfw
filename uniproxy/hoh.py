@@ -67,36 +67,35 @@ def fakedict(s):
 class HttpOverHttp(object):
     MAXGETSIZE = 512
     logger = logging.getLogger('hoh')
+    name = 'hoh'
 
     def __init__(self, baseurl, algoname, key):
         from gevent import socket
-        self.baseurl, url = baseurl, urlparse(baseurl)
+        self.baseurl, self.url = baseurl, urlparse(baseurl)
         self.socket = socket.socket
-        if url.scheme == 'https': self.socket = ssl_socket()(self.socket)
-        port = url.port or (443 if url.scheme.lower() == 'https' else 80)
-        self.addr, self.path = (url.hostname, port), url.path
+        if self.url.scheme == 'https': self.socket = ssl_socket()(self.socket)
+        port = self.url.port or (443 if self.url.scheme.lower() == 'https' else 80)
+        self.addr, self.path = (self.url.hostname, port), self.url.path
         self.algoname, self.key = algoname, key
-
-    def fmt_reqinfo(self, req):
-        return '%s %s %s' % (req.method, req.uri.split('?', 1)[0], 'gae')
 
     def client(self, query):
         if len(query) >= self.MAXGETSIZE:
             logger.debug('query in post mode.')
-            req = request_http(self.path)
-            req.body = query
+            req = request_http(self.path, data=query)
             req.set_header('Context-Length', str(len(query)))
             req.set_header('Context-Type', 'multipart/form-data')
         else:
             logger.debug('query in get mode.')
             req = request_http(self.path + '?' + query)
+        req.set_header('Host', self.url.hostname)
+        req.debug()
         res = http_client(req, self.addr, self.socket)
+        res.debug()
         if res.code != 200: return
         return res.read_body()
 
     def handler(self, req):
         if req.method.upper() == 'CONNECT': return None
-        self.logger.info(self.fmt_reqinfo(req))
         d = zlib.compress(dumpreq(req), 9)
         d = get_crypt(self.algoname, self.key)[0](d)
         d = base64.b64encode(d, '_%').strip('=')
@@ -107,6 +106,9 @@ class HttpOverHttp(object):
         return res
 
 class GAE(HttpOverHttp):
+    name = 'gae'
+    ipaddr = '74.125.128.106'
     def __init__(self, gaeid, algoname, key, ssl=False):
-        super(GAE, self).__init__('%s://%s.appspot.com/' % (
+        super(GAE, self).__init__('%s://%s.appspot.com/fakeurl' % (
                 'https' if ssl else 'http', gaeid), algoname, key)
+        self.addr = (self.ipaddr, self.addr[1])

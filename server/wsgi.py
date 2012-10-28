@@ -18,8 +18,6 @@ def http_over_http(d):
     d = base64.b64decode(d.replace('&', '').replace('=', '') + '==', '_%')
     d = get_crypt(config['method'], config['key'])[1](d)
     req, options = loadmsg(zlib.decompress(d), HttpRequest)
-    logging.debug('here')
-    req.dbg_print()
 
     res = urlfetch.fetch(req.uri, req.body, req.method, dict(req.headers), deadline=30)
     d = zlib.compress(dump_gaeres(res), 9)
@@ -27,9 +25,9 @@ def http_over_http(d):
 
 def application(env, start_response):
     if env['PATH_INFO'] == config['fakeurl']:
-        if environ['REQUEST_METHOD'] == 'GET': d = env['QUERY_STRING']
-        elif environ['REQUEST_METHOD'] == 'POST':
-            d = env['wsgi.input'].read(int(env['CONTEXT_LENGTH']))
+        if env['REQUEST_METHOD'] == 'GET': d = env['QUERY_STRING']
+        elif env['REQUEST_METHOD'] == 'POST':
+            d = env['wsgi.input'].read(int(env['HTTP_CONTEXT_LENGTH']))
         else:
             start_response('404 Not Found', [])
             return

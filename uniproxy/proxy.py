@@ -71,13 +71,13 @@ def http(req, sock_factory, timeout=None):
         sock.connect((hostname, port))
         stream1 = sock.makefile()
 
-        if VERBOSE: req.dbg_print()
+        if VERBOSE: req.debug()
         tout(reqx.send_header)(stream1)
         streamcopy(reqx, req.stream, stream1, tout)
         stream1.flush()
 
         res = recv_msg(stream1, HttpResponse)
-        if VERBOSE: res.dbg_print()
+        if VERBOSE: res.debug()
         tout(res.send_header)(req.stream)
         hasbody = req.method.upper() != 'HEAD' and res.code not in CODE_NOBODY
         streamcopy(res, stream1, req.stream, tout)

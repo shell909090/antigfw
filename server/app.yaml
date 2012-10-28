@@ -4,6 +4,10 @@ runtime: python27
 api_version: 1
 threadsafe: true
 
+libraries:
+- name: pycrypto
+  version: latest
+
 handlers:
 - url: .*
   script: wsgi.application

@@ -32,9 +32,8 @@ def mgr_default(self, req):
     return response_http(404, body='Page not found')
 
 def fmt_reqinfo(info):
-    req, usesocks, addr, t = info
-    return '%s %s %s' % (
-        req.method, req.uri.split('?', 1)[0], 'socks' if usesocks else 'direct')
+    req, usesocks, addr, t, name = info
+    return '%s %s %s' % (req.method, req.uri.split('?', 1)[0], name)
 
 class ProxyServer(object):
     proxytypemap = {'socks5': socks.SocksManager, 'http': conn.HttpManager}
@@ -127,10 +126,11 @@ class ProxyServer(object):
             hostname, func, tout = (
                 req.url.netloc, self.func_http, self.config.get('http_noac'))
         usesocks = self.usesocks(hostname.split(':', 1)[0], req)
-        reqinfo = (req, usesocks, addr, time.time())
+        reqinfo = [req, usesocks, addr, time.time(), '']
 
         # if usesocks and self.upstream:
         if self.upstream:
+            reqinfo[4] = self.upstream.name
             with self.with_worklist(reqinfo):
                 logger.info(fmt_reqinfo(reqinfo))
                 res = self.upstream.handler(req)
@@ -139,6 +139,7 @@ class ProxyServer(object):
                     req.stream.flush()
                     return res
 
+        reqinfo[4] = 'socks' if usesocks else 'direct'
         with self.with_worklist(reqinfo):
             logger.info(fmt_reqinfo(reqinfo))
             try: return func(req, self.get_conn_mgr(not usesocks), tout)

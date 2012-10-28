@@ -30,16 +30,17 @@ http_tout = 3600
 conn_noac = None
 http_noac = 300
 
-try:
-    # 过滤配置
+# 过滤配置
+if 'NetFilter' in globals():
     whitenets = None
+if 'NetFilter' in globals():
     blacknets = NetFilter('/etc/uniproxy/white.list',
                           '/usr/share/uniproxy/reserved.list',
                           '/usr/share/uniproxy/routes.list.gz')
-    upstream  = None
+upstream  = None
 
     # DNS配置
+if 'DNSServer' in globals():
     dnsport   = None
     dnsserver = DNSServer('8.8.8.8', 512, 30)
     dnsserver.loadfile('/usr/share/uniproxy/dnsfake')
-except NameError: pass
