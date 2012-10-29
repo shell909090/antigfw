@@ -4,6 +4,8 @@
 @date: 2012-10-17
 @author: shell.xu
 '''
+import sys
+sys.path.append('../uniproxy/')
 from config import *
 from hoh import *
 

@@ -28,6 +28,7 @@ class OPCODE(DEFINE):
     NOTIFY = 4
     UPDATE = 5
 
+# with NULL, cython can't compile this file
 class TYPE(DEFINE):
     A = 1           # a host address
     NS = 2          # an authoritative name server
@@ -38,7 +39,7 @@ class TYPE(DEFINE):
     MB = 7          # a mailbox domain name (EXPERIMENTAL)
     MG = 8          # a mail group member (EXPERIMENTAL)
     MR = 9          # a mail rename domain name (EXPERIMENTAL)
-    NULL = 10       # a null RR (EXPERIMENTAL)
+    # NULL = 10       # a null RR (EXPERIMENTAL)
     WKS = 11        # a well known service description
     PTR = 12        # a domain name pointer
     HINFO = 13      # host information
@@ -199,9 +200,3 @@ def query(name, type=TYPE.A, server='127.0.0.1', protocol='udp'):
 def nslookup(name):
     r = query(name)
     return [rdata for name, type, cls, ttl, rdata in r.ans if type == TYPE.A]
-
-def main():
-    r = query(sys.argv[1], server='8.8.8.8')
-    r.show(sys.stdout)
-
-if __name__ == '__main__': main()
