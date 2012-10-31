@@ -1,240 +1,154 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
+#!/bin/sh
 ### BEGIN INIT INFO
 # Provides:          antigfw
-# Required-Start:    $network $local_fs $remote_fs
-# Required-Stop:     $remote_fs
+# Required-Start:    $network $local_fs
+# Required-Stop:
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: Start and stop sshtunnel client daemon
+# Short-Description: <Enter a short description of the software>
+# Description:       <Enter a long description of the software>
+#                    <...>
+#                    <...>
 ### END INIT INFO
 
-# Author: Shell Xu <shell909090@gmail.com>
-'''
-@date: 2011-04-07
-@author: shell.xu
-'''
-import os, sys, time, signal, logging
-from os import path
+# Author: shell <shell@unknown>
 
-def import_config(*cfgs):
-    d = {}
-    for cfg in reversed(cfgs):
-        try:
-            with open(path.expanduser(cfg)) as fi:
-                eval(compile(fi.read(), cfg, 'exec'), d)
-        except (OSError, IOError): pass
-    return dict([(k, v) for k, v in d.iteritems() if not k.startswith('_')])
+# PATH should only include /usr/* if it runs after the mountnfs.sh script
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+DESC=antigfw             # Introduce a short description here
+NAME=antigfw             # Introduce the short server's name here
+DAEMON=/usr/bin/antigfw  # Introduce the server's location here
+DAEMON_ARGS=""           # Arguments to run the daemon with
+PIDFILE=/var/run/$NAME.pid
+SCRIPTNAME=/etc/init.d/$NAME
 
-def initlog(lv, logfile=None):
-    rootlog = logging.getLogger()
-    if logfile: handler = logging.FileHandler(logfile)
-    else: handler = logging.StreamHandler()
-    handler.setFormatter(
-        logging.Formatter(
-            '%(asctime)s,%(msecs)03d %(name)s[%(levelname)s]: %(message)s',
-            '%H:%M:%S'))
-    rootlog.addHandler(handler)
-    rootlog.setLevel(lv)
+# Exit if the package is not installed
+[ -x $DAEMON ] || exit 0
 
-logger = logging.getLogger('antigfw')
+# Read configuration variable file if it is present
+# [ -r /etc/default/$NAME ] && . /etc/default/$NAME
 
-def daemonized():
-    try:
-        pid = os.fork()
-        if pid > 0: return pid
-    except OSError, e: sys.exit(1)
-    os.chdir("/")
-    os.setsid()
-    os.umask(0)
-    for i in xrange(0, 3): os.close(i)
-    try:
-        if os.fork() > 0: sys.exit(0)
-    except OSError, e: sys.exit(1)
-    logger.info('daemonized finish')
-    return 0
+# Load the VERBOSE setting and other rcS variables
+. /lib/init/vars.sh
 
-def get_pid_status(pid):
-    try: os.getsid(pid)
-    except OSError: return False
-    return True
+# Define LSB log_* functions.
+# Depend on lsb-base (>= 3.0-6) to ensure that this file is present.
+. /lib/lsb/init-functions
 
-def kill_stand(pids, timeout):
-    t_start = time.time()
-    logger.debug('try stop.')
-    for pid in pids:
-        try: os.kill(pid, signal.SIGTERM)
-        except OSError: pass
-    while (time.time() - t_start) < timeout and pids:
-        pids = [pid for pid in pids if get_pid_status(pid)]
-        time.sleep(1)
-    logger.debug('try kill %d.' % len(pids))
-    for pid in pids:
-        try: os.kill(pid, signal.SIGKILL)
-        except OSError: pass
-    logger.debug('kill sent.')
+#
+# Function that starts the daemon/service
+#
+do_start()
+{
+	# Return
+	#   0 if daemon has been started
+	#   1 if daemon was already running
+	#   2 if daemon could not be started
+	start-stop-daemon --start --quiet --pidfile $PIDFILE --exec $DAEMON --test > /dev/null \
+		|| return 1
+	start-stop-daemon --start --quiet --pidfile $PIDFILE --exec $DAEMON -- \
+		-p $PIDFILE $DAEMON_ARGS \
+		|| return 2
+	# Add code here, if necessary, that waits for the process to be ready
+	# to handle requests from services started subsequently which depend
+	# on this one.  As a last resort, sleep for some time.
+}
 
-class RunfileNotExistError(StandardError): pass
-class RunfileExistError(StandardError): pass
+#
+# Function that stops the daemon/service
+#
+do_stop()
+{
+	# Return
+	#   0 if daemon has been stopped
+	#   1 if daemon was already stopped
+	#   2 if daemon could not be stopped
+	#   other if a failure occurred
+	start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --pidfile $PIDFILE --name $NAME
+	RETVAL="$?"
+	[ "$RETVAL" = 2 ] && return 2
+	# Wait for children to finish too if this is a daemon that forks
+	# and if the daemon is only ever run from this initscript.
+	# If the above conditions are not satisfied then add some other code
+	# that waits for the process to drop all resources that could be
+	# needed by services started subsequently.  A last resort is to
+	# sleep for some time.
+	start-stop-daemon --stop --quiet --oknodo --retry=0/30/KILL/5 --exec $DAEMON
+	[ "$?" = 2 ] && return 2
+	# Many daemons don't delete their pidfiles when they exit.
+	rm -f $PIDFILE
+	return "$RETVAL"
+}
 
-class RunFile(object):
-    ERR_NOTEXIST = '%s not exist, daemon not started yet.'
-    ERR_EXIST = '%s is exists.\nIf you really wanna run daemon, remove it first.'
+#
+# Function that sends a SIGHUP to the daemon/service
+#
+do_reload() {
+	#
+	# If the daemon can reload its configuration without
+	# restarting (for example, when it is sent a SIGHUP),
+	# then implement that here.
+	#
+	start-stop-daemon --stop --signal 1 --quiet --pidfile $PIDFILE --name $NAME
+	return 0
+}
 
-    def __init__(self, filename): self.bind(filename)
-    def bind(self, filename): self.filename = filename
+case "$1" in
+  start)
+    [ "$VERBOSE" != no ] && log_daemon_msg "Starting $DESC " "$NAME"
+    do_start
+    case "$?" in
+		0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
+		2) [ "$VERBOSE" != no ] && log_end_msg 1 ;;
+	esac
+  ;;
+  stop)
+	[ "$VERBOSE" != no ] && log_daemon_msg "Stopping $DESC" "$NAME"
+	do_stop
+	case "$?" in
+		0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
+		2) [ "$VERBOSE" != no ] && log_end_msg 1 ;;
+	esac
+	;;
+  status)
+       status_of_proc "$DAEMON" "$NAME" && exit 0 || exit $?
+       ;;
+  #reload|force-reload)
+	#
+	# If do_reload() is not implemented then leave this commented out
+	# and leave 'force-reload' as an alias for 'restart'.
+	#
+	#log_daemon_msg "Reloading $DESC" "$NAME"
+	#do_reload
+	#log_end_msg $?
+	#;;
+  restart|force-reload)
+	#
+	# If the "reload" option is implemented then remove the
+	# 'force-reload' alias
+	#
+	log_daemon_msg "Restarting $DESC" "$NAME"
+	do_stop
+	case "$?" in
+	  0|1)
+		do_start
+		case "$?" in
+			0) log_end_msg 0 ;;
+			1) log_end_msg 1 ;; # Old process is still running
+			*) log_end_msg 1 ;; # Failed to start
+		esac
+		;;
+	  *)
+	  	# Failed to stop
+		log_end_msg 1
+		;;
+	esac
+	;;
+  *)
+	#echo "Usage: $SCRIPTNAME {start|stop|restart|reload|force-reload}" >&2
+	echo "Usage: $SCRIPTNAME {start|stop|status|restart|force-reload}" >&2
+	exit 3
+	;;
+esac
 
-    def chk_state(self, in_run):
-        b = path.exists(self.filename)
-        if in_run and not b:
-            raise RunfileNotExistError(self.ERR_NOTEXIST % self.filename)
-        elif not in_run and b:
-            raise RunfileExistError(self.ERR_EXIST % self.filename)
-
-    def update(self, content):
-        with open(self.filename, 'w') as fo: fo.write(content)
-
-    def getpids(self):
-        self.chk_state(True)
-        with open(self.filename, 'r') as f:
-            return [int(line.strip()) for line in f]
-
-    def kill(self, sig):
-        for pid in self.getpids(): os.kill(pid, sig)
-
-    def kill_stand(self, timeout=5):
-        kill_stand(self.getpids(), timeout)
-
-    def getstatus(self):
-        return all(map(get_pid_status, self.getpids()))
-
-    def acquire(self):
-        self.chk_state(False)
-        self.update(str(os.getpid()))
-
-    def release(self):
-        self.chk_state(True)
-        os.remove(self.filename)
-
-    def __enter__(self): self.acquire()
-
-    def __exit__(self, type, value, traceback): self.release()
-
-class lockfile(object):
-
-    def __init__(self, filename, share=False):
-        self.filename, self.share = filename, share
-
-    def __enter__(self):
-        self.file = open(self.filename, 'r')
-        fcntl.flock(self.file.fileno(),
-                    fcntl.LOCK_SH if self.share else fcntl.LOCK_EX)
-
-    def __exit__(self, type, value, traceback):
-        fcntl.flock(self.file.fileno(), fcntl.LOCK_UN)
-        self.file.close()
-
-def watcher(*runners):
-    clean_flag = False
-    pids = dict([(runner, runner(0)) for runner in runners])
-    def clean_up(signum, frame):
-        if signum != signal.SIGTERM: return
-        logger.info('signal TERM, start to stop childs')
-        clean_flag = True
-        kill_stand(pids.values(), 3)
-    signal.signal(signal.SIGTERM, clean_up)
-    while True:
-        os.wait()
-        if clean_flag: break
-        for runner, pid in pids.iteritems():
-            if get_pid_status(pid): continue
-            pids[runner] = runner(pid)
-        time.sleep(1)
-    logger.info('system exit')
-
-def ssh_runner(cfg):
-    def real_runner(pre_pid):
-        if pre_pid: logger.info('prior ssh stopped, pid %d' % pre_pid)
-        args = ['ssh', '-CNq', '-o', 'ServerAliveInterval=30', 
-                '%s@%s' % (cfg['username'], cfg['sshhost']),]
-        if 'sshport' in cfg: args.extend(('-p', cfg['sshport'],))
-        if 'sockport' in cfg: args.extend(('-D', str(cfg['sockport']),))
-        if 'listenport' in cfg:
-            lopt = '%d:localhost:%d' % (cfg['listenport'][0], cfg['listenport'][1])
-            args.extend(('-L', lopt,))
-        if 'sshprivfile' in cfg: args.extend(('-i', cfg['sshprivfile'],))
-        pid = os.spawnv(os.P_NOWAIT, '/usr/bin/ssh', args)
-        logger.info('ssh starting pid %d with cmdline "%s"' % (
-                pid, ' '.join(args)))
-        return pid
-    return real_runner
-
-def uniproxy_runner(pre_pid):
-    pid = os.fork()
-    if pid > 0: return pid
-    from uniproxy import main
-    main('antigfw', '~/.antigfw', '/etc/default/antigfw')
-    sys.exit(0)
-
-def proccmd():
-    config = {}
-    runfile = RunFile(None)
-
-    def start():
-        if not config.get('daemon', False):
-            print 'not start due to config.daemon not set'
-            return
-        try: runfile.chk_state(False)
-        except RunfileExistError:
-            print 'antigfw already started.'
-            return
-        if daemonized() > 0:
-            print 'antigfw starting.'
-            return
-        runfile.acquire()
-        try:
-            try:
-                runners = []
-                if config.get('autossh', None):
-                    runners.extend([ssh_runner(cfg) for cfg in config['sshs']])
-                if config.get('uniproxy', True): runners.append(uniproxy_runner)
-                watcher(*runners)
-            except: logger.exception('unknown')
-        finally: runfile.release()
-
-    def stop():
-        try:
-            runfile.kill_stand()
-            runfile.release()
-        except RunfileNotExistError: print 'kill force.'
-        print 'antigfw stoped.'
-
-    def restart():
-        stop()
-        start()
-
-    def help():
-        print '%s {start|stop|restart|force-reload}' % sys.argv[0]
-
-    cmds = {'start': start, 'stop': stop,
-            'restart': restart, 'force-reload': restart}
-
-    def init(*cfgs):
-        if cfgs: config.update(import_config(*cfgs))
-        initlog(getattr(logging, config.get('loglevel', 'WARNING')),
-                config.get('logfile', None))
-        runfile.bind(config.get('pidfile', '/var/run/antigfw.pid'))
-
-    def handler(argv):
-        if not argv: help()
-        else: cmds.get(argv[0], help)()
-    def final(): pass
-    return init, handler, final
-
-def main():
-    init, handler, final = proccmd()
-    init('antigfw', '~/.antigfw', '/etc/default/antigfw')
-    try: handler(sys.argv[1:])
-    finally: final()
-
-if __name__ == '__main__': main()
+:
