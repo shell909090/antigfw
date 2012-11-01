@@ -79,6 +79,7 @@ deb包安装比较简单，使用以下指令即可。
   * sockport: 代理的本地工作端口，即"socksv5"端口。整型。
   * listenport: 转发模式的代理端口，一般是http端口。整型，格式为(本地端口,远程端口)。注意远程ip是localhost。
   * username: 登录ssh服务器的用户名。
+  * password: 如果设定此项，并且没有设定sshprivfile，则会使用password登录。
   * sshhost: 代理服务器主机名。
   * sshport: 代理服务器端口名。
   * sshprivfile: 代理服务器私钥文件路径。

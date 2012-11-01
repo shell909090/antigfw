@@ -10,7 +10,7 @@ Homepage: https://github.com/shell909090/antigfw
 Package: antigfw
 Architecture: all
 Depends: ${shlibs:Depends}, ${misc:Depends}, python, python-gevent
-Recommends: openssh-client
+Recommends: openssh-client, python-pexpect
 Description: toolset for cross GFW
  toolset for cross GFW, include such tools.
   * auto start multi ssh tunnel
