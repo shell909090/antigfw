@@ -108,7 +108,7 @@ class Watcher(object):
         while self.pids:
             try: self.waitpid()
             except KeyboardInterrupt: break
-            except: logging.exception('unknown exception in watcher')
+            except: logging.exception('watcher unknown exception')
         logging.info('system exit')
 
     def waitpid(self):
@@ -139,8 +139,10 @@ class Watcher(object):
 
     def on_idle(self):
         self.times += 1
-        for t, f in self.idlefunc:
-            if self.times % t == 0: f()
+        try:
+            for t, f in self.idlefunc:
+                if self.times % t == 0: f()
+        except: logging.exception('on idle unknown exception')
 
 class SshRunner(object):
 
@@ -149,20 +151,32 @@ class SshRunner(object):
         self.args = ['ssh', '-CNq', '-o', 'ServerAliveInterval=30', 
                      '%s@%s' % (cfg['username'], cfg['sshhost']),]
         if 'sshport' in cfg: self.args.extend(('-p', cfg['sshport'],))
-        if 'sockport' in cfg: self.args.extend(('-D', str(cfg['sockport']),))
+        if 'sockport' in cfg:
+            self.args.extend(('-D', str(cfg['sockport']),))
+            self.checkport = cfg['sockport']
         if 'listenport' in cfg:
             lopt = '%d:localhost:%d' % (cfg['listenport'][0], cfg['listenport'][1])
             self.args.extend(('-L', lopt,))
+            self.checkport = cfg['listenport'][0]
         if 'sshprivfile' in cfg: self.args.extend(('-i', cfg['sshprivfile'],))
+        if not hasattr(self, 'checkport'):
+            raise Exception('no sockport or listenport')
 
     def run(self, pre_pid):
         if pre_pid: logging.info('prior ssh stopped, pid %d' % pre_pid)
-        pid = os.spawnv(os.P_NOWAIT, '/usr/bin/ssh', self.args)
-        logging.info('ssh starting pid %d with cmdline "%s"' % (pid, ' '.join(self.args)))
-        return pid
+        self.pid = os.spawnv(os.P_NOWAIT, '/usr/bin/ssh', self.args)
+        logging.info('ssh starting pid %d with cmdline "%s"' % (self.pid, ' '.join(self.args)))
+        return self.pid
+
+    def keepconn(self):
+        import socket
+        sock = socket.socket()
+        try:
+            return sock.connect_ex(('127.0.0.1', self.checkport)) == 0
+        finally: sock.close()
 
     def on_idle(self):
-        pass
+        if not self.keepconn(): kill_stand(self.pid)
 
 def uniproxy_runner(configfile):
     @runner_wrap
@@ -176,11 +190,12 @@ def uniproxy_runner(configfile):
 def main():
     '''
     -c: config file
+    -f: foreground
     -l: log file
     -h: help
     -p: pidfile
     '''
-    optlist, args = getopt.getopt(sys.argv[1:], 'c:l:hp:')
+    optlist, args = getopt.getopt(sys.argv[1:], 'c:fl:hp:')
     optdict = dict(optlist)
     if '-h' in optdict:
         print main.__doc__
@@ -194,7 +209,8 @@ def main():
     logfile = path.realpath(
         path.expanduser(optdict.get('-l', '/var/log/antigfw.log')))
 
-    daemonized(pidfile=pidfile, logfile=logfile)
+    if '-f' not in optdict:
+        daemonized(pidfile=pidfile, logfile=logfile)
     initlog(logging.WARNING)
     logging.info('daemoniz finished, new pid %d' % os.getpid())
 
@@ -203,7 +219,7 @@ def main():
         for cfg in config['sshs']:
             r = SshRunner(cfg)
             w.register(r.run)
-            w.regidle(r.on_idle)
+            w.regidle()(r.on_idle)
     if config.get('uniproxy', True): w.register(uniproxy_runner(configfile))
     w.run()
 
