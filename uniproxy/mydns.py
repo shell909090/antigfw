@@ -139,7 +139,7 @@ class Record(object):
             return n, r[0], r[1], r[2], socket.inet_ntoa(s.read(r[3]))
         elif r[0] == TYPE.CNAME:
             return n, r[0], r[1], r[2], self.unpackname(s)
-        else: raise Exception("don't know howto handle type")
+        else: raise Exception("don't know howto handle type, %s." % str(r))
 
     def pack(self):
         self.buf = struct.pack(

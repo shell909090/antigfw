@@ -4,7 +4,7 @@
 @date: 2012-09-29
 @author: shell.xu
 '''
-import sys, time, heapq, random, getopt, logging, gevent
+import sys, time, heapq, random, getopt, logging, cStringIO, gevent
 from mydns import *
 from contextlib import contextmanager
 from gevent import socket, queue
@@ -184,7 +184,9 @@ class DNSServer(object):
                     r = Record.unpack(d)
                     if r.id not in self.inquery:
                         logger.warn('dns server got a record but don\'t know who care it\'s id')
-                        logger.debug('this record id is: %d' % r.id)
+                        buf = cStringIO.StringIO()
+                        r.show(buf)
+                        logger.debug(buf.getvalue())
                     else: self.inquery[r.id](r, d)
             except Exception, err: logger.exception(err)
 
