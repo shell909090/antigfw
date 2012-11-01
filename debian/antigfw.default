@@ -1,45 +1,11 @@
-# 全局配置，对antigfw和uniproxy同时生效
-logfile  = '/var/log/antigfw.log'
-loglevel = 'WARNING'
-daemon   = False
+# Defaults for temp initscript
+# sourced by /etc/init.d/antigfw
+# installed at /etc/default/antigfw by the maintainer scripts
 
-# antigfw的ssh配置，控制启动服务
-autossh = True
-sshs	= [
-    {'sockport': 7777, 'listenport': (8080, 8080),
-     'username':'user', 'sshhost':'sshhost',
-     'sshport':'22', 'sshprivfile':'~/.ssh/id_rsa'},
-    ]
+RUNDAEMON=0
+LOGFILE='/var/log/antigfw.log'
+CONFIGFILE='/etc/antigfw/antigfw.conf'
 
-# 基本配置
-uniproxy  = True
-localip   = ''
-localport = 8118
-managers  = {'admin': 'uniproxy'}
-users	  = {}
+# Additional options that are passed to the Daemon.
+DAEMON_OPTS="-c $CONFIGFILE -l $LOGFILE"
 
-# 代理配置
-# example:
-#     proxies = [http('127.0.0.1', 8080, username='user', password='pass'),
-#                socks5('127.0.0.1', 8080, username='user', password='pass')]
-max_conn  = 30
-proxies   = None
-conn_tout = None
-http_tout = 3600
-conn_noac = None
-http_noac = 300
-
-# 过滤配置
-if 'NetFilter' in globals():
-    whitenets = None
-if 'NetFilter' in globals():
-    blacknets = NetFilter('/etc/uniproxy/white.list',
-                          '/usr/share/uniproxy/reserved.list',
-                          '/usr/share/uniproxy/routes.list.gz')
-upstream  = None
-
-    # DNS配置
-if 'DNSServer' in globals():
-    dnsport   = None
-    dnsserver = DNSServer('8.8.8.8', 512, 30)
-    dnsserver.loadfile('/usr/share/uniproxy/dnsfake')

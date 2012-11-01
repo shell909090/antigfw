@@ -4,8 +4,6 @@ import os, sys, time, signal, getopt, logging
 from os import path
 from contextlib import contextmanager
 
-logger = logging.getLogger('antigfw')
-
 def import_config(cfgs, d=None):
     if d is None: d = {}
     for cfg in reversed(cfgs):
@@ -13,8 +11,7 @@ def import_config(cfgs, d=None):
         try:
             with open(path.expanduser(cfg)) as fi:
                 eval(compile(fi.read(), cfg, 'exec'), d)
-            logger.info('import config %s' % cfg)
-        except (OSError, IOError): logger.error('import config')
+        except (OSError, IOError): print >>sys.stderr, 'import config'
     return dict([(k, v) for k, v in d.iteritems() if not k.startswith('_')])
 
 def initlog(lv, logfile=None):
@@ -23,109 +20,191 @@ def initlog(lv, logfile=None):
     else: handler = logging.StreamHandler()
     handler.setFormatter(
         logging.Formatter(
-            '%(asctime)s,%(msecs)03d %(name)s[%(levelname)s]: %(message)s',
+            '%(asctime)s,%(msecs)03d (%(process)d)%(name)s[%(levelname)s]: %(message)s',
             '%H:%M:%S'))
     rootlog.addHandler(handler)
     rootlog.setLevel(lv)
+    return rootlog
 
-def daemonized(closefds=True):
+def daemonized(parentalive=False, pidfile=None, logfile=None, chdir=True):
+    if pidfile and path.exists(pidfile):
+        with open(pidfile) as fi: pid = int(fi.read().strip())
+        if path.exists('/proc/%d/exe' % pid): return -1
     try:
         pid = os.fork()
-        if pid > 0: return pid
-    except OSError, e: sys.exit(1)
-    os.chdir("/")
+        if pid > 0:
+            if parentalive: return pid
+            else: os._exit(0)
+    except OSError: os._exit(1)
     os.setsid()
     os.umask(0)
-    if closefds:
-        for i in xrange(0, 3): os.close(i)
+    with open('/dev/null', 'r') as dev_null:
+        os.dup2(dev_null.fileno(), 0)
+        if logfile:
+            with open(logfile, 'a') as f:
+                os.dup2(f.fileno(), 1)
+                os.dup2(f.fileno(), 2)
+        else:
+            os.dup2(dev_null.fileno(), 1)
+            os.dup2(dev_null.fileno(), 2)
+    if chdir:
+        if not isinstance(chdir, basestring): chdir = '/'
+        os.chdir(chdir)
     try:
-        if os.fork() > 0: sys.exit(0)
-    except OSError, e: sys.exit(1)
-    logger.info('daemoniz finished, new pid %d' % os.getpid())
-    return 0
+        if os.fork() > 0: os._exit(0)
+    except OSError: sys.exit(1)
+    if pidfile:
+        with open(pidfile, 'w') as fo: fo.write(str(os.getpid()))
 
 @contextmanager
 def lockfile(filename, share=False):
-    logger.debug('locking %s' % filename)
+    logging.debug('locking %s' % filename)
     f = open(filename, 'r')
     fcntl.flock(f.fileno(), fcntl.LOCK_SH if share else fcntl.LOCK_EX)
     try: yield f
     finally:
         fcntl.flock(f.fileno(), fcntl.LOCK_UN)
         f.close()
-        logger.debug('unlock %s' % filename)
+        logging.debug('unlock %s' % filename)
 
-def writepid(filepath):
-    with open(filepath, 'w') as fo:
-        fo.write(str(os.getpid()))
+def kill_stand(pids, timeout=5):
+    if not pids: return
+    t_start = time.time()
+    logging.debug('try term %s.' % str(pids))
+    for pid in pids:
+        try: os.kill(pid, signal.SIGTERM)
+        except OSError: pass
+    while (time.time() - t_start) < timeout and pids:
+        pid, st = os.waitpid(-1, os.WNOHANG)
+        if pid: pids.remove(pid)
+        time.sleep(0.1)
+    logging.debug('try kill %s.' % str(pids))
+    for pid in pids:
+        try: os.kill(pid, signal.SIGKILL)
+        except OSError: pass
 
-def get_pid_status(pid):
-    try: os.getsid(pid)
-    except OSError: return False
-    return True
+def runner_wrap(runner):
+    def inner(origpid):
+        pid = os.fork()
+        if pid > 0: return pid
+        signal.signal(signal.SIGTERM, signal.SIG_DFL)
+        st = 0
+        try: st = runner(origpid)
+        finally: os._exit(st)
+    return inner
 
-def watcher(*runners):
-    pids = dict([(runner, 0) for runner in runners])
-    def cleanup(signum, frame):
+class Watcher(object):
+
+    def __init__(self, runners, timeout=2, lifetime=None):
+        self.timeout, self.times, self.idlefunc, self.pids = timeout, 0, [], {}
+        for r in runners: self.register(r)
+        if lifetime: self.regidle(lifetime)(self.killall)
+
+    def register(self, func): self.pids[func] = 0
+
+    def run(self):
+        signal.signal(signal.SIGTERM, self.cleanup)
+        for r, p in self.pids.iteritems(): self.pids[r] = r(p)
+        while self.pids:
+            try: self.waitpid()
+            except KeyboardInterrupt: break
+            except: logging.exception('unknown exception in watcher')
+        logging.info('system exit')
+
+    def waitpid(self):
+        time.sleep(self.timeout)
+        try: pid, st = os.waitpid(-1, os.WNOHANG)
+        except OSError: return
+        if not pid: self.on_idle()
+        else:
+            for r, p in self.pids.iteritems():
+                if p == pid:
+                    self.pids[r] = r(pid)
+                    break
+
+    def killall(self): kill_stand(self.pids.values())
+
+    def cleanup(self, signum, frame):
         if signum != signal.SIGTERM: return
-        logger.info('signal TERM, start to stop childs')
-        tokill = pids.values()
-        pids.clear()
-        kill_stand(tokill, 3)
-    signal.signal(signal.SIGTERM, cleanup)
-    while pids:
-        for runner, pid in pids.iteritems():
-            if pid and get_pid_status(pid): continue
-            pids[runner] = runner(pid)
-        try: time.sleep(1)
-        except IOError: continue
-        try: os.wait()
-        except OSError: continue
-    logger.info('system exit')
+        logging.info('signal TERM, start to stop childs')
+        tokill = self.pids.values()
+        self.pids.clear()
+        kill_stand(tokill)
 
-def ssh_runner(cfg):
-    def real_runner(pre_pid):
-        if pre_pid: logger.info('prior ssh stopped, pid %d' % pre_pid)
-        args = ['ssh', '-CNq', '-o', 'ServerAliveInterval=30', 
-                '%s@%s' % (cfg['username'], cfg['sshhost']),]
-        if 'sshport' in cfg: args.extend(('-p', cfg['sshport'],))
-        if 'sockport' in cfg: args.extend(('-D', str(cfg['sockport']),))
+    def regidle(self, times=30):
+        def recv(func):
+            self.idlefunc.append((times, func))
+            return func
+        return recv
+
+    def on_idle(self):
+        self.times += 1
+        for t, f in self.idlefunc:
+            if self.times % t == 0: f()
+
+class SshRunner(object):
+
+    def __init__(self, cfg):
+        self.cfg = cfg
+        self.args = ['ssh', '-CNq', '-o', 'ServerAliveInterval=30', 
+                     '%s@%s' % (cfg['username'], cfg['sshhost']),]
+        if 'sshport' in cfg: self.args.extend(('-p', cfg['sshport'],))
+        if 'sockport' in cfg: self.args.extend(('-D', str(cfg['sockport']),))
         if 'listenport' in cfg:
             lopt = '%d:localhost:%d' % (cfg['listenport'][0], cfg['listenport'][1])
-            args.extend(('-L', lopt,))
-        if 'sshprivfile' in cfg: args.extend(('-i', cfg['sshprivfile'],))
-        pid = os.spawnv(os.P_NOWAIT, '/usr/bin/ssh', args)
-        logger.info('ssh starting pid %d with cmdline "%s"' % (
-                pid, ' '.join(args)))
+            self.args.extend(('-L', lopt,))
+        if 'sshprivfile' in cfg: self.args.extend(('-i', cfg['sshprivfile'],))
+
+    def run(self, pre_pid):
+        if pre_pid: logging.info('prior ssh stopped, pid %d' % pre_pid)
+        pid = os.spawnv(os.P_NOWAIT, '/usr/bin/ssh', self.args)
+        logging.info('ssh starting pid %d with cmdline "%s"' % (pid, ' '.join(self.args)))
         return pid
+
+    def on_idle(self):
+        pass
+
+def uniproxy_runner(configfile):
+    @runner_wrap
+    def real_runner(pre_pid):
+        import uniproxy
+        try: uniproxy.main(configfile)
+        except: logging.exception('uniproxy unknown error')
+        return 0
     return real_runner
 
-def uniproxy_runner(pre_pid):
-    pid = os.fork()
-    if pid > 0: return pid
-    import uniproxy
-    uniproxy.main('/etc/default/antigfw')
-    sys.exit(0)
-
 def main():
-    global logger
-    optlist, args = getopt.getopt(sys.argv[1:], 'p:')
+    '''
+    -c: config file
+    -l: log file
+    -h: help
+    -p: pidfile
+    '''
+    optlist, args = getopt.getopt(sys.argv[1:], 'c:l:hp:')
     optdict = dict(optlist)
-    config = import_config(['/etc/default/antigfw'])
-    if not config.get('daemon', True):
-        print 'not start due to config.daemon not set'
+    if '-h' in optdict:
+        print main.__doc__
         return
-    initlog(getattr(logging, config.get('loglevel', 'WARNING')),
-            config.get('logfile', None))
-    logger = logging.getLogger('antigfw')
 
-    if daemonized() > 0: return
-    writepid(optdict.get('-p', '/var/run/antigfw.pid'))
+    configfile = path.realpath(
+        path.expanduser(optdict.get('-c', '/etc/antigfw/antigfw.conf')))
+    config = import_config([configfile,])
+    pidfile = path.realpath(
+        path.expanduser(optdict.get('-p', '/var/run/antigfw.pid')))
+    logfile = path.realpath(
+        path.expanduser(optdict.get('-l', '/var/log/antigfw.log')))
 
-    runners = []
-    if config.get('authssh', None):
-        runners.extend([ssh_runner(cfg) for cfg in config['sshs']])
-    if config.get('uniproxy', True): runners.append(uniproxy_runner)
-    watcher(*runners)
+    daemonized(pidfile=pidfile, logfile=logfile)
+    initlog(logging.WARNING)
+    logging.info('daemoniz finished, new pid %d' % os.getpid())
+
+    w = Watcher([])
+    if config.get('autossh', None):
+        for cfg in config['sshs']:
+            r = SshRunner(cfg)
+            w.register(r.run)
+            w.regidle(r.on_idle)
+    if config.get('uniproxy', True): w.register(uniproxy_runner(configfile))
+    w.run()
 
 if __name__ == '__main__': main()

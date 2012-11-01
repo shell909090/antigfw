@@ -16,7 +16,7 @@ def initlog(lv, logfile=None):
     else: handler = logging.StreamHandler()
     handler.setFormatter(
         logging.Formatter(
-            '%(asctime)s,%(msecs)03d %(name)s[%(levelname)s]: %(message)s',
+            '%(asctime)s,%(msecs)03d (%(process)d)%(name)s[%(levelname)s]: %(message)s',
             '%H:%M:%S'))
     rootlog.addHandler(handler)
     rootlog.setLevel(lv)
@@ -26,8 +26,7 @@ def main(*cfgs):
         print 'no configure'
         return
     ps = serve.ProxyServer(cfgs)
-    initlog(getattr(logging, ps.config.get('loglevel', 'WARNING')),
-            ps.config.get('logfile', None))
+    initlog(getattr(logging, ps.config.get('loglevel', 'WARNING')))
     logger.info('ProxyServer inited')
     addr = (ps.config.get('localip', ''), ps.config.get('localport', 8118))
     try:

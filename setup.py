@@ -17,7 +17,9 @@ setup(
     name='antigfw', version=version,
     description=description, long_description=long_description,
     author='Shell.E.Xu', author_email='shell909090@gmail.com',
-    scripts=['dns2tcp.py', 'antigfw'], packages=['uniproxy',],
+    scripts=['dns2tcp.py', 'antigfw'],
+    packages=['uniproxy',],
     data_files=[
-        ('share/uniproxy', ['data/dnsfake', 'data/reserved.list', 'data/routes.list.gz']
-         ),])
+        ('/etc/antigfw', ['data/antigfw.conf',]),
+        ('share/uniproxy', ['data/dnsfake', 'data/reserved.list', 'data/routes.list.gz']),
+        ])

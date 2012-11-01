@@ -48,8 +48,8 @@ deb包安装比较简单，使用以下指令即可。
 
 1. 安装python-gevent和openssh-client包，并且有一个以上可以用于翻墙的ssh帐号。
 2. 在翻墙帐号上设定密钥而非密码(将你的公钥导出到~/.ssh/authorized_keys文件，具体参照[Linux](http://blog.yening.cn/2006/10/30/187.html)和[Windows](http://butian.org/knowledge/linux/1632.html))。
-3. 设定/etc/default/antigfw文件，修改其中的sshs记录。
-4. 完成修改后，将上述配置中的daemon由False改为True。
+3. 设定/etc/antigfw/antigfw文件，修改其中的sshs记录。
+4. 完成修改后，将/etc/default/antigfw配置中的daemon由0改为1。
 5. 用/etc/init.d/antigfw restart重启服务。
 6. 在浏览器上设定服务器的8118端口为代理，类型为http代理，如：localhost:8118(其中localhost为你启动antigfw服务的机器IP)。
 7. 如果有iptables防火墙，又需要对外服务，开放8118端口。(参考：-A INPUT -p tcp -m tcp --dport 8118 -j ACCEPT)
@@ -60,12 +60,17 @@ deb包安装比较简单，使用以下指令即可。
 
 启动uniproxy和ssh，互相连接，形成自动翻墙系统。
 
+## 系统配置 ##
+
+在/etc/default/antigfw文件中
+
+* LOGFILE: 记录到哪个日志文件。
+* RUNDAEMON: 是否启动服务程序，用于暂停服务，阻止软件包刚刚完成安装后服务立刻启动导致的配置错误
+* CONFIGFILE: 下面所使用的配置文件。一般为/etc/antigfw/antigfw.conf。
+
 ## 全局配置 ##
 
-* logfile: 记录到哪个日志文件。
 * loglevel: 记录级别，默认WARNING。
-* daemon: 是否启动服务程序，用于暂停服务，阻止软件包刚刚完成安装后服务立刻启动导致的配置错误
-* pidfile: pid文件。
 
 ## ssh配置 ##
 

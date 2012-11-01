@@ -26,7 +26,7 @@ SCRIPTNAME=/etc/init.d/$NAME
 [ -x $DAEMON ] || exit 0
 
 # Read configuration variable file if it is present
-# [ -r /etc/default/$NAME ] && . /etc/default/$NAME
+[ -r /etc/default/$NAME ] && . /etc/default/$NAME
 
 # Load the VERBOSE setting and other rcS variables
 . /lib/init/vars.sh
@@ -40,14 +40,20 @@ SCRIPTNAME=/etc/init.d/$NAME
 #
 do_start()
 {
+        if [ $RUNDAEMON -eq 0 ]
+	then
+	    echo "daemon not start due to /etc/default/$NAME rundaemon set to 0."
+	    return 3
+	fi
 	# Return
 	#   0 if daemon has been started
 	#   1 if daemon was already running
 	#   2 if daemon could not be started
+	#   3 if configuration file not ready for daemon
 	start-stop-daemon --start --quiet --pidfile $PIDFILE --exec $DAEMON --test > /dev/null \
 		|| return 1
 	start-stop-daemon --start --quiet --pidfile $PIDFILE --exec $DAEMON -- \
-		-p $PIDFILE $DAEMON_ARGS \
+	        -p $PIDFILE $DAEMON_ARGS \
 		|| return 2
 	# Add code here, if necessary, that waits for the process to be ready
 	# to handle requests from services started subsequently which depend
