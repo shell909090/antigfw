@@ -82,7 +82,8 @@ def http(req, sock_factory, timeout=None):
         hasbody = req.method.upper() != 'HEAD' and res.code not in CODE_NOBODY
         streamcopy(res, stream1, req.stream, tout)
         req.stream.flush()
-    res.connection = req.get_header('Proxy-Connection', '').lower() == 'keep-alive'
+    res.connection = req.get_header('Proxy-Connection', '').lower() == 'keep-alive' and\
+        res.get_header('Connection', 'close').lower() != 'close'
     logger.debug('%s with %d in %0.2f, %s' % (
             req.uri.split('?', 1)[0], res.code, time.time() - t,
             req.get_header('Proxy-Connection', 'closed').lower()))
