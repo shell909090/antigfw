@@ -184,9 +184,7 @@ class DNSServer(object):
                     r = Record.unpack(d)
                     if r.id not in self.inquery:
                         logger.warn('dns server got a record but don\'t know who care it\'s id')
-                        buf = cStringIO.StringIO()
-                        r.show(buf)
-                        logger.debug(buf.getvalue())
+                        logger.debug('\n'.join(r.show()))
                     else: self.inquery[r.id](r, d)
             except Exception, err: logger.exception(err)
 

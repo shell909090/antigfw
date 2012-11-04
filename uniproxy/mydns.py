@@ -96,15 +96,18 @@ class Record(object):
         self.truncated, self.rd, self.ra, self.rcode = truncated, rd, ra, rcode
         self.quiz, self.ans, self.auth, self.ex = [], [], [], []
 
-    def show(self, stream):
-        print >>stream, 'quiz'
+    def show(self):
+        yield 'quiz\n'
         for name, qtype, cls in self.quiz:
-            print >>stream,  '\t', name, '\t', TYPE.lookup(qtype),\
-                '\t', CLASS.lookup(cls)
-        print >>stream, 'answer'
-        for name, type, cls, ttl, rdata in self.ans:
-            print >>stream, '\t', name, '\t', TYPE.lookup(type),\
-                '\t', CLASS.lookup(cls), '\t', ttl, '\t', rdata
+            yield '\t%s\t%s\t%s' % (name, TYPE.lookup(qtype), CLASS.lookup(cls))
+        yield 'answer'
+        for r in self.anw: self.showRR(r)
+        yield 'auth'
+        for r in self.auth: self.showRR(r)
+        yield 'ex'
+        for r in self.ex: self.showRR(r)
+
+    def filteredRR(self, RRs, types): return (i for i in RRs if i[0] in types)
 
     def packname(self, name):
         return ''.join([chr(len(i))+i for i in name.split('.')]) + '\x00'
@@ -139,6 +142,24 @@ class Record(object):
             return n, r[0], r[1], r[2], socket.inet_ntoa(s.read(r[3]))
         elif r[0] == TYPE.CNAME:
             return n, r[0], r[1], r[2], self.unpackname(s)
+        elif r[0] == TYPE.MX:
+            return n, r[0], r[1], r[2], \
+                struct.unpack('>H', s.read(2))[0], self.unpackname(s)
+        elif r[0] == TYPE.PTR:
+            return n, r[0], r[1], r[2], self.unpackname(s)
+        elif r[0] == TYPE.SOA:
+            rr = [n, r[0], r[1], r[2], self.unpackname(s), self.unpackname(s)]
+            rr.extend(struct.unpack('>HHHHH', s.read(20)))
+            return tuple(rr)
+        else: raise Exception("don't know howto handle type, %s." % str(r))
+
+    def showRR(self, r):
+        if r[0] in (TYPE.A, TYPE.CNAME, TYPE.PTR, type.r[4]):
+            return '\t%s\t%d\t%s\t%s\t%s' % (
+                r[0], r[3], CLASS.lookup(r[2]), TYPE.lookup(r[1]), r[4])
+        elif r[0] == TYPE.MX:
+            return '\t%s\t%d\t%s\t%s\t%s' % (
+                r[0], r[3], CLASS.lookup(r[2]), TYPE.lookup(r[1]), r[5])
         else: raise Exception("don't know howto handle type, %s." % str(r))
 
     def pack(self):
