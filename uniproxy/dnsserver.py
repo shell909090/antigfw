@@ -130,7 +130,8 @@ class DNSServer(object):
         if self.fakeset and self.fakeset & set(ipaddrs):
             logger.info('drop %s in fakeset.' % ipaddrs)
             return
-        return ipaddrs
+        ttls = [ttl for name, type, cls, ttl, rdata in r.ans if type == TYPE.A]
+        return ipaddrs, ttls[0] * 60 if ttls else self.TIMEOUT
 
     def gethostbyname(self, name):
         try:
@@ -139,7 +140,7 @@ class DNSServer(object):
         except socket.error: pass
 
         if name in self.cache:
-            if time.time() - self.cache[name][0] <= self.TIMEOUT:
+            if time.time() <= self.cache[name][0]:
                 return random.choice(self.cache[name][1])
             else: del self.cache[name]
 
@@ -167,7 +168,8 @@ class DNSServer(object):
                 try:
                     r = qp.get(timeout=self.timeout)
                     logger.debug('get response with id: %d' % r.id)
-                    self.cache[name] = (time.time(), self.get_ipaddrs(r))
+                    ipaddrs, ttl = self.get_ipaddrs(r)
+                    self.cache[name] = (time.time() + ttl, ipaddrs)
                     return
                 except (EOFError, socket.error): continue
                 except queue.Empty: return
