@@ -176,12 +176,12 @@ class DNSServer(object):
         while True:
             try:
                 while True:
-                    d = self.sock.recvfrom(1024)[0]
+                    d = self.sock.recvfrom(2048)[0]
                     r = Record.unpack(d)
                     if not self.get_ipaddrs(r): continue
                     if r.id not in self.inquery:
-                        logger.warn('got a record not in query\n%s' % \
-                                        '\n'.join(r.show()))
+                        logger.warn('got a record not in query\n')
+                        for line in r.show(): logger.warn(line)
                     else: self.inquery[r.id](r, d)
             except Exception, err: logger.exception(err)
 

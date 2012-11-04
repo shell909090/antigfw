@@ -97,15 +97,14 @@ class Record(object):
         self.quiz, self.ans, self.auth, self.ex = [], [], [], []
 
     def show(self):
-        yield 'quiz\n'
-        for name, qtype, cls in self.quiz:
-            yield '\t%s\t%s\t%s' % (name, TYPE.lookup(qtype), CLASS.lookup(cls))
+        yield 'quiz'
+        for q in self.quiz: yield self.showquiz(q)
         yield 'answer'
-        for r in self.ans: self.showRR(r)
+        for r in self.ans: yield self.showRR(r)
         yield 'auth'
-        for r in self.auth: self.showRR(r)
+        for r in self.auth: yield self.showRR(r)
         yield 'ex'
-        for r in self.ex: self.showRR(r)
+        for r in self.ex: yield self.showRR(r)
 
     def filteredRR(self, RRs, types): return (i for i in RRs if i[0] in types)
 
@@ -130,6 +129,9 @@ class Record(object):
     def unpackquiz(self, s):
         name, r = self.unpackname(s), struct.unpack('>HH', s.read(4))
         return name, r[0], r[1]
+
+    def showquiz(self, q):
+        return '\t%s\t%s\t%s' % (q[0], TYPE.lookup(q[1]), CLASS.lookup(q[2]))
 
     # def packRR(self, name, type, cls, ttl, res):
     #     return self.packname(name) + \
