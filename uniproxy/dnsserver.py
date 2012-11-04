@@ -157,24 +157,20 @@ class DNSServer(object):
         finally: del self.inquery[id]
         logger.debug('del id %d' % id)
 
-    def get_result(self, qp):
-        for i in xrange(self.RETRY):
-            try:
-                r = qp.get(timeout=self.timeout)
-                logger.debug('get response with id: %d' % r.id)
-                ipaddrs = self.get_ipaddrs(r)
-                if ipaddrs: return ipaddrs
-            except (EOFError, socket.error): continue
-            except queue.Empty: return
-
     def query(self, name, type=TYPE.A):
         q = mkquery((name, type))
         while q.id in self.inquery: q = mkquery((name, type))
         logger.debug('request dns %s with id %d' % (name, q.id))
         with self.with_queue(q.id) as qp:
             self.sock.sendto(q.pack(), (self.dnsserver, self.DNSPORT))
-            ipaddrs = self.get_result(qp)
-        if ipaddrs: self.cache[name] = (time.time(), ipaddrs)
+            for i in xrange(self.RETRY):
+                try:
+                    r = qp.get(timeout=self.timeout)
+                    logger.debug('get response with id: %d' % r.id)
+                    self.cache[name] = (time.time(), self.get_ipaddrs(r))
+                    return
+                except (EOFError, socket.error): continue
+                except queue.Empty: return
 
     def receiver(self):
         while True:
@@ -182,9 +178,10 @@ class DNSServer(object):
                 while True:
                     d = self.sock.recvfrom(1024)[0]
                     r = Record.unpack(d)
+                    if not self.get_ipaddrs(r): continue
                     if r.id not in self.inquery:
-                        logger.warn('dns server got a record but don\'t know who care it\'s id')
-                        logger.debug('\n'.join(r.show()))
+                        logger.warn('got a record not in query\n%s' % \
+                                        '\n'.join(r.show()))
                     else: self.inquery[r.id](r, d)
             except Exception, err: logger.exception(err)
 
@@ -197,7 +194,6 @@ class DNSServer(object):
         # TODO: timeout!
         def sendback(r, d):
             assert r.id==q.id
-            if not self.get_ipaddrs(r): return
             sock.sendto(d, addr)
             del self.inquery[q.id]
         self.inquery[q.id] = sendback
@@ -214,17 +210,3 @@ class DNSServer(object):
                     data, addr = sock.recvfrom(1024)
                     self.on_datagram(data, sock, addr)
             except Exception, err: logger.exception(err)
-
-def main():
-    optlist, args = getopt.getopt(sys.argv[1:], 'df')
-    optdict = dict(optlist)
-    dnsfake = ['../dnsfake']
-    if '-f' in optdict: dnsfake.insert(0, optdict['-f'])
-    dns = DNSServer()
-    dns.loadlist(dnsfake)
-    if '-d' in optdict:
-        dns.server()
-    else:
-        for arg in args: print arg, dns.gethostbyname(arg)
-
-if __name__ == '__main__': main()

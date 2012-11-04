@@ -93,6 +93,8 @@ def runner_wrap(runner):
         finally: os._exit(st)
     return inner
 
+class SIGHUPError(StandardError): pass
+
 class Watcher(object):
 
     def __init__(self, runners, timeout=2, lifetime=None):
@@ -103,13 +105,17 @@ class Watcher(object):
     def register(self, func): self.pids[func] = 0
 
     def run(self):
-        signal.signal(signal.SIGTERM, self.cleanup)
+        signal.signal(signal.SIGTERM, self.sig_handler)
+        signal.signal(signal.SIGHUP, self.sig_handler)
         for r, p in self.pids.iteritems(): self.pids[r] = r(p)
-        while self.pids:
-            try: self.waitpid()
-            except KeyboardInterrupt: break
-            except: logging.exception('watcher unknown exception')
-        logging.info('system exit')
+        try:
+            while self.pids:
+                try: self.waitpid()
+                except KeyboardInterrupt: break
+                except: logging.exception('watcher unknown exception')
+        finally:
+            logging.info('system exit')
+            self.killall()
 
     def waitpid(self):
         time.sleep(self.timeout)
@@ -124,12 +130,15 @@ class Watcher(object):
 
     def killall(self): kill_stand(self.pids.values())
 
-    def cleanup(self, signum, frame):
-        if signum != signal.SIGTERM: return
-        logging.info('signal TERM, start to stop childs')
-        tokill = self.pids.values()
-        self.pids.clear()
-        kill_stand(tokill)
+    def sig_handler(self, signum, frame):
+        if signum == signal.SIGTERM:
+            logging.info('signal TERM, begin to stop childs')
+            tokill = self.pids.values()
+            self.pids.clear()
+            kill_stand(tokill)
+        elif signum == signal.SIGHUP:
+            logging.info('signal HUP, restart childs')
+            raise SIGHUPError()
 
     def regidle(self, times=30):
         def recv(func):
@@ -233,4 +242,9 @@ def main():
     if config.get('uniproxy', True): w.register(uniproxy_runner(configfile))
     w.run()
 
-if __name__ == '__main__': main()
+if __name__ == '__main__':
+    while True:
+        try:
+            main()
+            break
+        except SIGHUPError: pass

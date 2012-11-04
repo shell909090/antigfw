@@ -1,7 +1,7 @@
 #!/bin/sh
 ### BEGIN INIT INFO
 # Provides:          antigfw
-# Required-Start:    $network $local_fs
+# Required-Start:    $network $local_fs $remote_fs
 # Required-Stop:
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
@@ -119,15 +119,15 @@ case "$1" in
   status)
        status_of_proc "$DAEMON" "$NAME" && exit 0 || exit $?
        ;;
-  #reload|force-reload)
+  reload|force-reload)
 	#
 	# If do_reload() is not implemented then leave this commented out
 	# and leave 'force-reload' as an alias for 'restart'.
 	#
-	#log_daemon_msg "Reloading $DESC" "$NAME"
-	#do_reload
-	#log_end_msg $?
-	#;;
+	log_daemon_msg "Reloading $DESC" "$NAME"
+	do_reload
+	log_end_msg $?
+	;;
   restart|force-reload)
 	#
 	# If the "reload" option is implemented then remove the

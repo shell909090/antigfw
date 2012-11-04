@@ -101,7 +101,7 @@ class Record(object):
         for name, qtype, cls in self.quiz:
             yield '\t%s\t%s\t%s' % (name, TYPE.lookup(qtype), CLASS.lookup(cls))
         yield 'answer'
-        for r in self.anw: self.showRR(r)
+        for r in self.ans: self.showRR(r)
         yield 'auth'
         for r in self.auth: self.showRR(r)
         yield 'ex'
@@ -149,15 +149,15 @@ class Record(object):
             return n, r[0], r[1], r[2], self.unpackname(s)
         elif r[0] == TYPE.SOA:
             rr = [n, r[0], r[1], r[2], self.unpackname(s), self.unpackname(s)]
-            rr.extend(struct.unpack('>HHHHH', s.read(20)))
+            rr.extend(struct.unpack('>IIIII', s.read(20)))
             return tuple(rr)
         else: raise Exception("don't know howto handle type, %s." % str(r))
 
     def showRR(self, r):
-        if r[0] in (TYPE.A, TYPE.CNAME, TYPE.PTR, type.r[4]):
+        if r[1] in (TYPE.A, TYPE.CNAME, TYPE.PTR, TYPE.SOA):
             return '\t%s\t%d\t%s\t%s\t%s' % (
                 r[0], r[3], CLASS.lookup(r[2]), TYPE.lookup(r[1]), r[4])
-        elif r[0] == TYPE.MX:
+        elif r[1] == TYPE.MX:
             return '\t%s\t%d\t%s\t%s\t%s' % (
                 r[0], r[3], CLASS.lookup(r[2]), TYPE.lookup(r[1]), r[5])
         else: raise Exception("don't know howto handle type, %s." % str(r))
