@@ -112,6 +112,7 @@ class Watcher(object):
             while self.pids:
                 try: self.waitpid()
                 except KeyboardInterrupt: break
+                except SIGHUPError: break
                 except: logging.exception('watcher unknown exception')
         finally:
             logging.info('system exit')
@@ -148,10 +149,9 @@ class Watcher(object):
 
     def on_idle(self):
         self.times += 1
-        try:
-            for t, f in self.idlefunc:
-                if self.times % t == 0: f()
-        except: logging.exception('on idle unknown exception')
+        for t, f in self.idlefunc:
+            if self.times % t == 0: f()
+        if self.times >= 0x100000000: self.times = 1
 
 class SshRunner(object):
 
