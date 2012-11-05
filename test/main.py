@@ -5,6 +5,7 @@
 @author: shell.xu
 '''
 import os, urllib2, unittest
+from BeautifulSoup import BeautifulSoup
 
 try: del os.environ['http_proxy']
 except KeyError: pass
@@ -27,32 +28,22 @@ class ProxyTest(unittest.TestCase):
     def test_gfw_https(self):
         proxy_opener.open('https://www.facebook.com')
 
-auth_handler = urllib2.HTTPBasicAuthHandler()
-auth_handler.add_password(
-    realm='managers', uri='http://127.0.0.1:8080/', user='admin', passwd='uniproxy')
-auth_opener = urllib2.build_opener(auth_handler)
-
-class ManagerAuth(unittest.TestCase):
-    def test_noauth(self):
-        with self.assertRaises(urllib2.HTTPError):
-            urllib2.urlopen('http://127.0.0.1:8080/')
-    def test_auth(self):
-        auth_opener.open('http://127.0.0.1:8080/')
-
-class ManagerTest(unittest.TestCase):
-    def test_stat(self):
-        auth_opener.open('http://127.0.0.1:8080/')
-    def test_dnsfake(self):
-        auth_opener.open('http://127.0.0.1:8080/dnsfake')
-    def test_whitenets(self):
-        auth_opener.open('http://127.0.0.1:8080/whitenets')
-    def test_blacknets(self):
-        auth_opener.open('http://127.0.0.1:8080/blacknets')
+class TypeTest(unittest.TestCase):
+    def test_chunk(self):
+        s = BeautifulSoup(proxy_opener.open('http://wordpress.org//').read())
+        self.assertTrue(s.title.string.find(u'WordPress') != -1)
+    def test_length(self):
+        s = BeautifulSoup(proxy_opener.open('http://www.twitter.com/').read())
+        self.assertTrue(s.title.string.find(u'Twitter') != -1)
+    def test_hasbody(self):
+        s = BeautifulSoup(proxy_opener.open('http://www.dangdang.com/').read())
+        self.assertTrue(s.title.string.find(u'当当网') != -1)
 
 def main():
     loader = unittest.TestLoader()
     suite = unittest.TestSuite()
     suite.addTests(loader.loadTestsFromModule(__import__('main')))
+    suite.addTests(loader.loadTestsFromModule(__import__('mgr')))
     suite.addTests(loader.loadTestsFromModule(__import__('lru')))
     unittest.TextTestRunner(verbosity = 2).run(suite)
 

@@ -179,7 +179,7 @@ class SshRunner(object):
         return child.pid
         
     def run(self, pre_pid):
-        if pre_pid: logging.info('prior ssh stopped, pid %d' % pre_pid)
+        if pre_pid: logging.warn('prior ssh stopped, pid %d' % pre_pid)
         if self.cfg.get('password') and 'sshprivfile' not in self.cfg:
             self.pid = self.run_passwd()
         else: self.pid = os.spawnv(os.P_NOWAIT, '/usr/bin/ssh', self.args)
