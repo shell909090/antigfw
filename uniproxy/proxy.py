@@ -53,12 +53,12 @@ def connect(req, sock_factory, timeout=None):
             fdcopy(req.stream.fileno(), sock.fileno())
     finally: logger.info('%s closed' % req.uri)
 
-def streamcopy(req, stream1, stream2, tout):
-    iter = req.read_chunk(stream1, raw=True).__iter__()
-    while True:
-        try: d = tout(iter.next)()
-        except StopIteration, err: break
-        tout(stream2.write)(d)
+def streamcopy(msg, stream1, stream2, tout, hasbody=False):
+    iter = msg.read_chunk(stream1, hasbody=hasbody, raw=True).__iter__()
+    inf, ouf = tout(iter.next), tout(stream2.write)
+    try:
+        while True: ouf(inf())
+    except StopIteration, err: return
 
 def http(req, sock_factory, timeout=None):
     t = time.time()
@@ -80,11 +80,11 @@ def http(req, sock_factory, timeout=None):
         if VERBOSE: res.debug()
         tout(res.send_header)(req.stream)
         hasbody = req.method.upper() != 'HEAD' and res.code not in CODE_NOBODY
-        streamcopy(res, stream1, req.stream, tout)
+        streamcopy(res, stream1, req.stream, tout, hasbody)
         req.stream.flush()
     res.connection = req.get_header('Proxy-Connection', '').lower() == 'keep-alive' and\
         res.get_header('Connection', 'close').lower() != 'close'
     logger.debug('%s with %d in %0.2f, %s' % (
             req.uri.split('?', 1)[0], res.code, time.time() - t,
-            req.get_header('Proxy-Connection', 'closed').lower()))
+            'keep' if res.connection else 'close'))
     return res

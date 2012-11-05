@@ -152,6 +152,8 @@ class ProxyServer(object):
             while self.do_req(recv_msg(stream, HttpRequest), addr): pass
         except (EOFError, socket.error): logger.debug('network error')
         except Exception, err: logger.exception('unknown')
-        sock.close()
+        finally:
+            sock.close()
+            logger.debug('browser connection closed')
 
     def final(self): logger.info('system exit')

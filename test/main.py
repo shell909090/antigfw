@@ -6,6 +6,11 @@
 '''
 import os, urllib2, unittest
 
+try: del os.environ['http_proxy']
+except KeyError: pass
+try: del os.environ['https_proxy']
+except KeyError: pass
+
 proxy_handler = urllib2.ProxyHandler({
         'http': 'http://localhost:8080/', 'https': 'http://localhost:8080/'})
 # proxy_auth_handler = urllib2.ProxyBasicAuthHandler()

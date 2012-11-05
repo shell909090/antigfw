@@ -195,7 +195,7 @@ class SshRunner(object):
         finally: sock.close()
 
     def on_idle(self):
-        if not self.keepconn(): kill_stand(self.pid)
+        if not self.keepconn(): kill_stand([self.pid,])
 
 def uniproxy_runner(configfile):
     @runner_wrap
