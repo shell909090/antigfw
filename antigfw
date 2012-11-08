@@ -75,7 +75,8 @@ def kill_stand(pids, timeout=5):
         try: os.kill(pid, signal.SIGTERM)
         except OSError: pass
     while (time.time() - t_start) < timeout and pids:
-        pid, st = os.waitpid(-1, os.WNOHANG)
+        try: pid, st = os.waitpid(-1, os.WNOHANG)
+        except OSError: return
         if pid: pids.remove(pid)
         time.sleep(0.1)
     logging.debug('try kill %s.' % str(pids))
@@ -141,6 +142,7 @@ class Watcher(object):
             logging.info('signal HUP, restart childs')
             raise SIGHUPError()
 
+    # FIXME: sometimes, child die without a zombie
     def regidle(self, times=30):
         def recv(func):
             self.idlefunc.append((times, func))
