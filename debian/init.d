@@ -5,13 +5,13 @@
 # Required-Stop:
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: <Enter a short description of the software>
-# Description:       <Enter a long description of the software>
-#                    <...>
-#                    <...>
+# Short-Description: toolset for cross GFW
+# Description:        toolset for cross GFW, include such tools.
+#			* auto start multi ssh tunnel
+#			* http proxy use socks as upstream
 ### END INIT INFO
 
-# Author: shell <shell@unknown>
+# Author: Shell Xu <shell909090@gmail.com>
 
 # PATH should only include /usr/* if it runs after the mountnfs.sh script
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
