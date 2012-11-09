@@ -5,7 +5,7 @@
 @author: shell.xu
 '''
 import time, base64, logging
-import socks, proxy, conn, hoh, dnsserver, netfilter
+import socks, proxy, conn, hoh, dnsserver, dofilter, netfilter
 from os import path
 from urlparse import urlparse
 from contextlib import contextmanager
@@ -37,6 +37,7 @@ def fmt_reqinfo(info):
 
 class ProxyServer(object):
     env = {'socks5': socks.SocksManager, 'http': conn.HttpManager,
+           'DomainFilter': dofilter.DomainFilter,
            'NetFilter': netfilter.NetFilter, 'DNSServer': dnsserver.DNSServer,
            'HttpOverHttp': hoh.HttpOverHttp, 'GAE': hoh.GAE}
     srv_urls = {}
@@ -68,6 +69,7 @@ class ProxyServer(object):
 
         if self.dns is not None: self.dns.stop()
         self.dns = self.config.get('dnsserver')
+        self.dofilter = self.config.get('dofilter')
         self.whitenf = self.config.get('whitenets')
         self.blacknf = self.config.get('blacknets')
         self.direct = conn.DirectManager(self.dns)
@@ -93,6 +95,8 @@ class ProxyServer(object):
         return min(self.proxies, key=lambda x: x.size())
 
     def usesocks(self, hostname, req):
+        if self.dofilter and hostname in self.dofilter:
+            return True
         if self.whitenf is not None or self.blacknf is not None:
             addr = self.dns.gethostbyname(hostname)
             if req: req.address = addr

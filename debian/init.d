@@ -40,16 +40,16 @@ SCRIPTNAME=/etc/init.d/$NAME
 #
 do_start()
 {
-        if [ $RUNDAEMON -eq 0 ]
-	then
-	    echo "daemon not start due to /etc/default/$NAME rundaemon set to 0."
-	    return 3
-	fi
 	# Return
 	#   0 if daemon has been started
 	#   1 if daemon was already running
 	#   2 if daemon could not be started
 	#   3 if configuration file not ready for daemon
+        if [ $RUNDAEMON -eq 0 ]
+	then
+	    echo "daemon not start due to /etc/default/$NAME rundaemon set to 0."
+	    return 3
+	fi
 	start-stop-daemon --start --quiet --pidfile $PIDFILE --exec $DAEMON --test > /dev/null \
 		|| return 1
 	start-stop-daemon --start --quiet --pidfile $PIDFILE --exec $DAEMON -- \

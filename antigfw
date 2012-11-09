@@ -79,6 +79,7 @@ def kill_stand(pids, timeout=5):
         except OSError: return
         if pid: pids.remove(pid)
         time.sleep(0.1)
+    if not pids: return
     logging.debug('try kill %s.' % str(pids))
     for pid in pids:
         try: os.kill(pid, signal.SIGKILL)
