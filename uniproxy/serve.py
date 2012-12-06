@@ -69,6 +69,8 @@ class ProxyServer(object):
 
         if self.dns is not None: self.dns.stop()
         self.dns = self.config.get('dnsserver')
+        dnsport = self.config.get('dnsport', None)
+        if dnsport: self.dns.runserver(dnsport)
         self.dofilter = self.config.get('dofilter')
         self.whitenf = self.config.get('whitenets')
         self.blacknf = self.config.get('blacknets')

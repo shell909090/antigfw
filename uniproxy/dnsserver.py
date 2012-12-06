@@ -90,8 +90,14 @@ class DNSServer(object):
         self.fakeset = set()
         self.inquery = {}
         self.gr = gevent.spawn(self.receiver)
+        self.srv = None
 
-    def stop(self): self.gr.kill()
+    def runserver(self, dnsport=None):
+        self.srv = gevent.spawn(self.server, dnsport)
+
+    def stop(self):
+        if self.srv: self.srv.kill()
+        self.gr.kill()
 
     def load(self, stream):
         for line in stream:
@@ -212,3 +218,53 @@ class DNSServer(object):
                     data, addr = sock.recvfrom(1024)
                     self.on_datagram(data, sock, addr)
             except Exception, err: logger.exception(err)
+
+class TCPDNSServer(DNSServer):
+
+    def __init__(self, dnsserver, cmanager=None, cachesize=512, timeout=30):
+        self.dnsserver = dnsserver or self.DNSSERVER
+        self.cache, self.cachesize = ObjHeap(cachesize), cachesize
+        self.timeout = timeout
+        self.fakeset = set()
+        self.cmanager = cmanager
+        if self.cmanager is None: self.cmanager = conn.DirectManager(self.dns)
+    
+    def query(self, name, type=TYPE.A):
+        q = mkquery((name, type))
+        while q.id in self.inquery: q = mkquery((name, type))
+        logger.debug('request dns %s with id %d in tcp' % (name, q.id))
+
+        with self.cmanager.socket() as sock:
+            stream = sock.makefile()
+
+            data = q.pack()
+            stream.write(struct.pack('!H', len(data)) + data)
+            stream.flush()
+            s = stream.read(2)
+            if len(s) == 0: raise EOFError()
+            count = struct.unpack('!H', s)[0]
+            reply = stream.read(count)
+            if len(reply) == 0: raise EOFError()
+
+            r = Record.unpack(reply)
+            ips = self.get_ipaddrs(r)
+            if ips is None: raise Exception('get fake ip in tcp mode?')
+            ipaddrs, ttl = ips
+            self.cache[name] = (time.time() + ttl, ipaddrs)
+
+    def on_datagram(self, data, sock, addr):
+        q = Record.unpack(data)
+
+        with self.cmanager.socket() as sock:
+            stream = sock.makefile()
+
+            s = struct.pack('!H', len(data))
+            stream.write(s+data)
+            stream.flush()
+            s = stream.read(2)
+            if len(s) == 0: raise EOFError()
+            count = struct.unpack('!H', s)[0]
+            reply = stream.read(count)
+            if len(reply) == 0: raise EOFError()
+
+            sock.sendto(reply, d)

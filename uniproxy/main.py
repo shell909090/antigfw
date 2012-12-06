@@ -30,8 +30,6 @@ def main(*cfgs):
     logger.info('ProxyServer inited')
     addr = (ps.config.get('localip', ''), ps.config.get('localport', 8118))
     try:
-        if ps.config.get('dnsport'):
-            gevent.spawn(ps.dns.server, ps.config.get('dnsport'))
         try: server.StreamServer(addr, ps.http_handler).serve_forever()
         except KeyboardInterrupt: pass
     finally: ps.final()
